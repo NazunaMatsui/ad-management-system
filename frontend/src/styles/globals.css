@@ -1,23 +1,23 @@
-/* ダークテーマのプロフェッショナルデザイン */
+/* ライトテーマ */
 :root {
-  /* カラーパレット */
-  --bg-primary: #0f1419;
-  --bg-secondary: #1a1f29;
-  --bg-tertiary: #252b37;
-  --bg-hover: #2d3748;
-  
-  --text-primary: #e2e8f0;
-  --text-secondary: #a0aec0;
-  --text-muted: #718096;
-  
+  --bg-primary: #f4f6f9;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f8fafc;
+  --bg-hover: #f1f5f9;
+
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
   --accent-blue: #3b82f6;
   --accent-blue-hover: #2563eb;
   --accent-green: #10b981;
   --accent-red: #ef4444;
   --accent-orange: #f59e0b;
-  
-  --border-color: #2d3748;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+
+  --border-color: #e2e8f0;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
 }
 
 * {
@@ -33,18 +33,17 @@ body {
   line-height: 1.6;
 }
 
-/* スクロールバーカスタマイズ */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-hover);
+  background: var(--border-color);
   border-radius: 4px;
 }
 
@@ -52,7 +51,7 @@ body {
   background: var(--text-muted);
 }
 
-/* ボタンスタイル */
+/* ボタン */
 .btn {
   padding: 0.5rem 1rem;
   border: none;
@@ -60,7 +59,7 @@ body {
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -85,7 +84,7 @@ body {
   background-color: var(--bg-hover);
 }
 
-/* カードスタイル */
+/* カード */
 .card {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -94,21 +93,22 @@ body {
   box-shadow: var(--shadow);
 }
 
-/* 入力フィールド */
+/* 入力 */
 .input {
   width: 100%;
   padding: 0.625rem 0.875rem;
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   color: var(--text-primary);
   font-size: 0.875rem;
-  transition: border-color 0.2s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .input:focus {
   outline: none;
   border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .input::placeholder {
@@ -127,17 +127,29 @@ body {
 
 .table th {
   padding: 0.75rem 1rem;
-  text-align: left;
+  text-align: right;
   font-weight: 600;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table th:first-child {
+  text-align: left;
 }
 
 .table td {
-  padding: 1rem;
-  border-top: 1px solid var(--border-color);
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: right;
+  font-size: 0.875rem;
+}
+
+.table td:first-child {
+  text-align: left;
+  font-weight: 500;
 }
 
 .table tbody tr:hover {
@@ -156,12 +168,12 @@ body {
 
 .badge-green {
   background-color: rgba(16, 185, 129, 0.1);
-  color: var(--accent-green);
+  color: #059669;
 }
 
 .badge-red {
   background-color: rgba(239, 68, 68, 0.1);
-  color: var(--accent-red);
+  color: #dc2626;
 }
 
 .badge-blue {
@@ -170,38 +182,14 @@ body {
 }
 
 /* ユーティリティ */
-.text-muted {
-  color: var(--text-muted);
-}
-
-.text-secondary {
-  color: var(--text-secondary);
-}
-
-.flex {
-  display: flex;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-between {
-  justify-content: space-between;
-}
-
-.gap-1 {
-  gap: 0.25rem;
-}
-
-.gap-2 {
-  gap: 0.5rem;
-}
-
-.gap-4 {
-  gap: 1rem;
-}
-
+.text-muted { color: var(--text-muted); }
+.text-secondary { color: var(--text-secondary); }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-4 { gap: 1rem; }
 .mt-1 { margin-top: 0.25rem; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-4 { margin-top: 1rem; }
@@ -209,11 +197,7 @@ body {
 .mb-2 { margin-bottom: 0.5rem; }
 .mb-4 { margin-bottom: 1rem; }
 
-/* グリッド */
-.grid {
-  display: grid;
-}
-
+.grid { display: grid; }
 .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
 .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }

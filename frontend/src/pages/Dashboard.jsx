@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { format, subDays } from 'date-fns';
 import { metricsAPI, campaignAPI } from '../utils/api';
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Eye, 
-  MousePointerClick, 
+import DatePicker from '../components/DatePicker';
+import {
+  TrendingUp,
+  DollarSign,
+  Eye,
+  MousePointerClick,
   Target,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ChevronDown,
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -147,59 +149,117 @@ const Dashboard = () => {
   return (
     <div style={{ padding: '2rem' }}>
       {/* ヘッダー */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
-          📊 ダッシュボード
-        </h1>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          広告パフォーマンスの概要
-        </p>
+      <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{
+          width: '48px', height: '48px', borderRadius: '14px',
+          background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(99,102,241,0.3)', flexShrink: 0
+        }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+            <line x1="2" y1="20" x2="22" y2="20"/>
+          </svg>
+        </div>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: 'var(--text-primary)', lineHeight: 1.2 }}>
+            ダッシュボード
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.2rem' }}>
+            広告パフォーマンスの概要
+          </p>
+        </div>
       </div>
 
       {/* フィルター */}
-      <div className="card" style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="card" style={{ marginBottom: '2rem', padding: '1.25rem 1.5rem' }}>
+        <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+
+          {/* キャンペーン選択 */}
           <div style={{ flex: '1', minWidth: '200px' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500' }}>
+            <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               キャンペーン
             </label>
-            <select 
-              className="input"
-              value={selectedCampaign}
-              onChange={(e) => setSelectedCampaign(e.target.value)}
-            >
-              <option value="all">すべてのキャンペーン</option>
-              {campaigns.map(c => (
-                <option key={c.campaign_id} value={c.campaign_id}>
-                  {c.campaign_name}
-                </option>
+            <div style={{ position: 'relative' }}>
+              <select
+                className="input"
+                value={selectedCampaign}
+                onChange={(e) => setSelectedCampaign(e.target.value)}
+                style={{ appearance: 'none', paddingRight: '2rem', cursor: 'pointer' }}
+              >
+                <option value="all">すべてのキャンペーン</option>
+                {campaigns.map(c => (
+                  <option key={c.campaign_id} value={c.campaign_id}>{c.campaign_name}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+            </div>
+          </div>
+
+          {/* 区切り */}
+          <div style={{ width: '1px', height: '40px', backgroundColor: 'var(--border-color)', alignSelf: 'flex-end', marginBottom: '1px' }} />
+
+          {/* 日付範囲 */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.75rem', flex: '1', minWidth: '300px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                開始日
+              </label>
+              <DatePicker
+                value={startDate}
+                onChange={setStartDate}
+                placeholder="開始日を選択"
+                maxDate={endDate || undefined}
+              />
+            </div>
+
+            <div style={{ color: '#cbd5e1', fontSize: '1.1rem', paddingBottom: '0.5rem', flexShrink: 0 }}>→</div>
+
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                終了日
+              </label>
+              <DatePicker
+                value={endDate}
+                onChange={setEndDate}
+                placeholder="終了日を選択"
+                minDate={startDate || undefined}
+              />
+            </div>
+          </div>
+
+          {/* クイック選択 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              クイック選択
+            </label>
+            <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+              {[
+                { label: '今週', action: () => { setStartDate(format(subDays(new Date(), 6), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
+                { label: '先週', action: () => { setStartDate(format(subDays(new Date(), 13), 'yyyy-MM-dd')); setEndDate(format(subDays(new Date(), 7), 'yyyy-MM-dd')); } },
+                { label: '今月', action: () => { const d = new Date(); setStartDate(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
+                { label: '先月', action: () => { const d = new Date(); d.setDate(0); setEndDate(format(d, 'yyyy-MM-dd')); d.setDate(1); setStartDate(format(d, 'yyyy-MM-dd')); } },
+                { label: '30日', action: () => { setStartDate(format(subDays(new Date(), 29), 'yyyy-MM-dd')); setEndDate(format(new Date(), 'yyyy-MM-dd')); } },
+              ].map(q => (
+                <button
+                  key={q.label}
+                  onClick={q.action}
+                  style={{
+                    padding: '0.375rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)',
+                    backgroundColor: '#ffffff', color: 'var(--text-secondary)', fontSize: '0.78rem',
+                    fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#eff6ff'; e.currentTarget.style.borderColor = '#93c5fd'; e.currentTarget.style.color = '#3b82f6'; }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                >
+                  {q.label}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
-          
-          <div style={{ flex: '1', minWidth: '150px' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500' }}>
-              開始日
-            </label>
-            <input 
-              type="date"
-              className="input"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          
-          <div style={{ flex: '1', minWidth: '150px' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '500' }}>
-              終了日
-            </label>
-            <input 
-              type="date"
-              className="input"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
+
         </div>
       </div>
 
