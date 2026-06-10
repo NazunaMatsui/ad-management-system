@@ -16,6 +16,7 @@ const campaignRoutes = require('./routes/campaigns');
 const metricRoutes = require('./routes/metrics');
 const memoRoutes = require('./routes/memos');
 const metaRoutes = require('./routes/meta');
+const { startScheduler } = require('./jobs/metaSync');
 
 // API エンドポイント
 app.use('/api/auth', authRoutes);
@@ -42,6 +43,7 @@ app.use((err, req, res, next) => {
 
 // サーバー起動
 app.listen(PORT, () => {
+  startScheduler();
   console.log(`🚀 サーバーがポート${PORT}で起動しました`);
   console.log(`📊 広告費管理システムAPI稼働中`);
   console.log(`🌐 http://localhost:${PORT}`);
