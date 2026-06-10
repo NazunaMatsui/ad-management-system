@@ -61,10 +61,10 @@ router.get('/summary', async (req, res) => {
         SUM(dm.clicks) as total_clicks,
         SUM(dm.conversions_meta) as total_conversions_meta,
         SUM(dm.conversions_booking) as total_conversions_booking,
-        CASE 
-          WHEN SUM(dm.conversions_meta + dm.conversions_booking) > 0 
-          THEN SUM(dm.spend) / SUM(dm.conversions_meta + dm.conversions_booking)
-          ELSE 0 
+        CASE
+          WHEN SUM(dm.conversions_booking) > 0
+          THEN SUM(dm.spend) / SUM(dm.conversions_booking)
+          ELSE 0
         END as avg_cpa,
         CASE 
           WHEN SUM(dm.clicks) > 0 
@@ -139,10 +139,10 @@ router.get('/compare', async (req, res) => {
           SUM(clicks) as total_clicks,
           SUM(conversions_meta) as total_conversions_meta,
           SUM(conversions_booking) as total_conversions_booking,
-          CASE 
-            WHEN SUM(conversions_meta + conversions_booking) > 0 
-            THEN SUM(spend) / SUM(conversions_meta + conversions_booking)
-            ELSE 0 
+          CASE
+            WHEN SUM(conversions_booking) > 0
+            THEN SUM(spend) / SUM(conversions_booking)
+            ELSE 0
           END as avg_cpa,
           CASE 
             WHEN SUM(clicks) > 0 
