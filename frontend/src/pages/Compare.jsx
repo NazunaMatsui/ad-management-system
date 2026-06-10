@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { format, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { metricsAPI, campaignAPI } from '../utils/api';
-import DatePicker from '../components/DatePicker';
+import PeriodPicker from '../components/PeriodPicker';
 import { TrendingUp, TrendingDown, Minus, RefreshCw, ChevronDown } from 'lucide-react';
 
 // ---- フォーマッター ----
@@ -181,28 +181,19 @@ export default function Compare() {
           <div style={{
             backgroundColor: '#f8fafc', borderRadius: '12px',
             border: '1.5px solid #e2e8f0', padding: '1rem 1.25rem',
-            position: 'relative', zIndex: 10, overflow: 'visible'
+            position: 'relative', zIndex: 20, overflow: 'visible'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#94a3b8', flexShrink: 0 }} />
               <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>比較前</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: '600' }}>開始日</div>
-                <DatePicker value={beforeStart} onChange={setBeforeStart} placeholder="開始日を選択" maxDate={beforeEnd} />
-              </div>
-              <span style={{ color: '#d1d5db', flexShrink: 0, paddingTop: '1.2rem' }}>—</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: '600' }}>終了日</div>
-                <DatePicker value={beforeEnd} onChange={setBeforeEnd} placeholder="終了日を選択" minDate={beforeStart} />
-              </div>
-            </div>
-            {beforeStart && beforeEnd && (
-              <div style={{ marginTop: '0.625rem', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>
-                {beforeStart} 〜 {beforeEnd}
-              </div>
-            )}
+            <PeriodPicker
+              startDate={beforeStart}
+              endDate={beforeEnd}
+              onChange={(s, e) => { setBeforeStart(s || ''); setBeforeEnd(e || ''); }}
+              accentColor="#64748b"
+              accentBg="#f1f5f9"
+            />
           </div>
 
           {/* 区切り */}
@@ -218,22 +209,13 @@ export default function Compare() {
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3b82f6', flexShrink: 0 }} />
               <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.06em' }}>比較後</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.68rem', color: '#93c5fd', marginBottom: '0.3rem', fontWeight: '600' }}>開始日</div>
-                <DatePicker value={afterStart} onChange={setAfterStart} placeholder="開始日を選択" maxDate={afterEnd} />
-              </div>
-              <span style={{ color: '#bfdbfe', flexShrink: 0, paddingTop: '1.2rem' }}>—</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.68rem', color: '#93c5fd', marginBottom: '0.3rem', fontWeight: '600' }}>終了日</div>
-                <DatePicker value={afterEnd} onChange={setAfterEnd} placeholder="終了日を選択" minDate={afterStart} />
-              </div>
-            </div>
-            {afterStart && afterEnd && (
-              <div style={{ marginTop: '0.625rem', fontSize: '0.75rem', color: '#60a5fa', textAlign: 'center' }}>
-                {afterStart} 〜 {afterEnd}
-              </div>
-            )}
+            <PeriodPicker
+              startDate={afterStart}
+              endDate={afterEnd}
+              onChange={(s, e) => { setAfterStart(s || ''); setAfterEnd(e || ''); }}
+              accentColor="#3b82f6"
+              accentBg="#eff6ff"
+            />
           </div>
 
           {/* 再比較ボタン */}
