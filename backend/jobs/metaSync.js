@@ -2,6 +2,26 @@ const cron = require('node-cron');
 const axios = require('axios');
 const pool = require('../config/database');
 
+// キャンペーン objective → Ads Manager「結果」に対応する action_type マッピング
+const OBJECTIVE_RESULT_ACTIONS = {
+  OUTCOME_LEADS:      ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_custom'],
+  OUTCOME_SALES:      ['purchase', 'offsite_conversion.fb_pixel_purchase', 'omni_purchase'],
+  OUTCOME_ENGAGEMENT: ['post_engagement'],
+  OUTCOME_TRAFFIC:    ['link_click'],
+  OUTCOME_AWARENESS:  ['reach'],
+  MESSAGES:           ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.messaging_first_reply'],
+  CONVERSIONS:        ['offsite_conversion.fb_pixel_purchase', 'purchase', 'lead', 'offsite_conversion.fb_pixel_custom'],
+  LEAD_GENERATION:    ['lead', 'onsite_conversion.lead_grouped'],
+};
+
+function extractResultConversions(objective, actions) {
+  const targetTypes = OBJECTIVE_RESULT_ACTIONS[objective] || [];
+  if (targetTypes.length === 0) return 0;
+  return actions
+    .filter(a => targetTypes.includes(a.action_type))
+    .reduce((sum, a) => sum + parseInt(a.value || 0), 0);
+}
+
 // 指定期間の Meta インサイトを取得して DB に保存する共通関数
 async function syncMetaData(startDate, endDate) {
   const token = process.env.META_ACCESS_TOKEN;
@@ -20,7 +40,7 @@ async function syncMetaData(startDate, endDate) {
       level: 'campaign',
       time_increment: 1,
       time_range: JSON.stringify({ since: startDate, until: endDate }),
-      fields: 'campaign_id,campaign_name,spend,impressions,clicks,actions,date_start',
+      fields: 'campaign_id,campaign_name,objective,spend,impressions,clicks,actions,date_start',
       limit: 500,
     },
   });
@@ -37,9 +57,7 @@ async function syncMetaData(startDate, endDate) {
     const clicks = parseInt(row.clicks || 0);
 
     const actions = row.actions || [];
-    const conversions = actions
-      .filter(a => a.action_type === 'offsite_conversion.fb_pixel_purchase' || a.action_type === 'purchase')
-      .reduce((sum, a) => sum + parseInt(a.value || 0), 0);
+    const conversions = extractResultConversions(row.objective, actions);
 
     const campaignRes = await pool.query(
       `INSERT INTO campaigns (campaign_name, meta_campaign_id, is_active)
