@@ -79,8 +79,9 @@ async function syncMetaData(startDate, endDate) {
     const date = row.date_start;
     const spend = parseFloat(row.spend || 0);
     const impressions = parseInt(row.impressions || 0);
-    const clicks = parseInt(row.clicks || 0);
     const actions = row.actions || [];
+    const linkClickAction = actions.find(a => a.action_type === 'link_click');
+    const clicks = linkClickAction ? parseInt(linkClickAction.value || 0) : 0;
     const conversions = extractResultConversions(row.objective, actions);
     const status = campaignStatusMap[metaCampaignId] || 'paused';
 
