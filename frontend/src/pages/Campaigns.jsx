@@ -59,7 +59,7 @@ export default function Campaigns() {
           start_date: startDate,
           end_date: endDate,
         });
-        results[c.campaign_id] = r.data;
+        results[c.campaign_id] = r.data[0] || null;
       } catch (_) {
         results[c.campaign_id] = null;
       }
