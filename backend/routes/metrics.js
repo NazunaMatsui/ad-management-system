@@ -13,25 +13,30 @@ router.get('/', async (req, res) => {
     let query = 'SELECT dm.*, c.campaign_name FROM daily_metrics dm JOIN campaigns c ON dm.campaign_id = c.campaign_id WHERE 1=1';
     const params = [];
     let paramCount = 1;
-    
+
+    // 全キャンペーン表示時は運用中のみ集計
+    if (!campaign_id) {
+      query += ` AND c.status = 'active'`;
+    }
+
     if (start_date) {
       query += ` AND dm.date >= $${paramCount}`;
       params.push(start_date);
       paramCount++;
     }
-    
+
     if (end_date) {
       query += ` AND dm.date <= $${paramCount}`;
       params.push(end_date);
       paramCount++;
     }
-    
+
     if (campaign_id) {
       query += ` AND dm.campaign_id = $${paramCount}`;
       params.push(campaign_id);
       paramCount++;
     }
-    
+
     query += ' ORDER BY dm.date DESC, dm.campaign_id';
     
     const result = await pool.query(query, params);
@@ -80,28 +85,33 @@ router.get('/summary', async (req, res) => {
       JOIN campaigns c ON dm.campaign_id = c.campaign_id
       WHERE 1=1
     `;
-    
+
     const params = [];
     let paramCount = 1;
-    
+
+    // 全キャンペーン表示時は運用中のみ集計
+    if (!campaign_id) {
+      query += ` AND c.status = 'active'`;
+    }
+
     if (start_date) {
       query += ` AND dm.date >= $${paramCount}`;
       params.push(start_date);
       paramCount++;
     }
-    
+
     if (end_date) {
       query += ` AND dm.date <= $${paramCount}`;
       params.push(end_date);
       paramCount++;
     }
-    
+
     if (campaign_id) {
       query += ` AND dm.campaign_id = $${paramCount}`;
       params.push(campaign_id);
       paramCount++;
     }
-    
+
     query += ' GROUP BY c.campaign_id, c.campaign_name ORDER BY c.campaign_id';
     
     const result = await pool.query(query, params);
