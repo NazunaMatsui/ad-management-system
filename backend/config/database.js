@@ -1,5 +1,9 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 require('dotenv').config();
+
+// DATE型をJavaScript Dateに変換せず文字列"YYYY-MM-DD"のまま返す
+// デフォルトのJST変換により日付が1日ずれる問題を防ぐ
+types.setTypeParser(1082, val => val);
 
 // PostgreSQL接続プール
 const pool = new Pool({
