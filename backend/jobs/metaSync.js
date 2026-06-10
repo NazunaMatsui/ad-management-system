@@ -22,6 +22,17 @@ function extractResultConversions(objective, actions) {
     .reduce((sum, a) => sum + parseInt(a.value || 0), 0);
 }
 
+// Meta の effective_status → システムの status 文字列
+function toSystemStatus(effectiveStatus) {
+  switch (effectiveStatus) {
+    case 'ACTIVE':    return 'active';
+    case 'PAUSED':    return 'paused';
+    case 'ARCHIVED':  return 'ended';
+    case 'DELETED':   return 'ended';
+    default:          return 'paused';
+  }
+}
+
 // 指定期間の Meta インサイトを取得して DB に保存する共通関数
 async function syncMetaData(startDate, endDate) {
   const token = process.env.META_ACCESS_TOKEN;
@@ -32,9 +43,23 @@ async function syncMetaData(startDate, endDate) {
   }
 
   const META_API_VERSION = 'v19.0';
-  const insightsUrl = `https://graph.facebook.com/${META_API_VERSION}/${adAccountId}/insights`;
+  const BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
-  const response = await axios.get(insightsUrl, {
+  // ① キャンペーン一覧からステータスを取得（全件）
+  const campaignsRes = await axios.get(`${BASE}/${adAccountId}/campaigns`, {
+    params: {
+      access_token: token,
+      fields: 'id,name,effective_status',
+      limit: 500,
+    },
+  });
+  const campaignStatusMap = {};
+  for (const c of campaignsRes.data.data || []) {
+    campaignStatusMap[c.id] = toSystemStatus(c.effective_status);
+  }
+
+  // ② インサイト（消化データ）取得
+  const insightsRes = await axios.get(`${BASE}/${adAccountId}/insights`, {
     params: {
       access_token: token,
       level: 'campaign',
@@ -45,7 +70,7 @@ async function syncMetaData(startDate, endDate) {
     },
   });
 
-  const insights = response.data.data || [];
+  const insights = insightsRes.data.data || [];
   let savedCount = 0;
 
   for (const row of insights) {
@@ -55,18 +80,19 @@ async function syncMetaData(startDate, endDate) {
     const spend = parseFloat(row.spend || 0);
     const impressions = parseInt(row.impressions || 0);
     const clicks = parseInt(row.clicks || 0);
-
     const actions = row.actions || [];
     const conversions = extractResultConversions(row.objective, actions);
+    const status = campaignStatusMap[metaCampaignId] || 'paused';
 
     const campaignRes = await pool.query(
-      `INSERT INTO campaigns (campaign_name, meta_campaign_id, is_active)
-       VALUES ($1, $2, true)
+      `INSERT INTO campaigns (campaign_name, meta_campaign_id, status, is_active)
+       VALUES ($1, $2, $3, true)
        ON CONFLICT (meta_campaign_id) DO UPDATE SET
          campaign_name = EXCLUDED.campaign_name,
-         updated_at = CURRENT_TIMESTAMP
+         status        = EXCLUDED.status,
+         updated_at    = CURRENT_TIMESTAMP
        RETURNING campaign_id`,
-      [campaignName, metaCampaignId]
+      [campaignName, metaCampaignId, status]
     );
     const internalCampaignId = campaignRes.rows[0].campaign_id;
 
@@ -74,16 +100,25 @@ async function syncMetaData(startDate, endDate) {
       `INSERT INTO daily_metrics (campaign_id, date, spend, impressions, clicks, conversions_meta, data_source)
        VALUES ($1, $2, $3, $4, $5, $6, 'meta_api')
        ON CONFLICT (campaign_id, date) DO UPDATE SET
-         spend = EXCLUDED.spend,
-         impressions = EXCLUDED.impressions,
-         clicks = EXCLUDED.clicks,
-         conversions_meta = EXCLUDED.conversions_meta,
-         data_source = 'meta_api',
-         updated_at = CURRENT_TIMESTAMP`,
+         spend             = EXCLUDED.spend,
+         impressions       = EXCLUDED.impressions,
+         clicks            = EXCLUDED.clicks,
+         conversions_meta  = EXCLUDED.conversions_meta,
+         data_source       = 'meta_api',
+         updated_at        = CURRENT_TIMESTAMP`,
       [internalCampaignId, date, spend, impressions, clicks, conversions]
     );
 
     savedCount++;
+  }
+
+  // ③ インサイトに出てこなかったキャンペーンのステータスも更新
+  for (const [metaId, status] of Object.entries(campaignStatusMap)) {
+    await pool.query(
+      `UPDATE campaigns SET status = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE meta_campaign_id = $2`,
+      [status, metaId]
+    );
   }
 
   return savedCount;
