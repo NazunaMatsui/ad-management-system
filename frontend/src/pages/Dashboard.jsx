@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { format, subDays } from 'date-fns';
+import { format, subDays, eachDayOfInterval, parseISO } from 'date-fns';
 import { metricsAPI, campaignAPI } from '../utils/api';
 import DatePicker from '../components/DatePicker';
 import {
@@ -77,7 +77,26 @@ const Dashboard = () => {
       totalSummary.avg_cvr = totalSummary.total_clicks > 0 ? (totalCV / totalSummary.total_clicks * 100) : 0;
 
       setSummary(totalSummary);
-      setDailyData(dailyRes.data.reverse()); // 日付昇順に
+
+      // 同日・複数キャンペーンの行を日付ごとに合算
+      const aggregated = {};
+      dailyRes.data.forEach(d => {
+        const key = format(parseISO(d.date), 'yyyy-MM-dd');
+        if (!aggregated[key]) {
+          aggregated[key] = { date: key, spend: 0, clicks: 0, conversions_meta: 0 };
+        }
+        aggregated[key].spend += parseFloat(d.spend || 0);
+        aggregated[key].clicks += parseInt(d.clicks || 0);
+        aggregated[key].conversions_meta += parseInt(d.conversions_meta || 0);
+      });
+
+      // 開始日〜終了日の全日付を埋めてデータが無い日は0
+      const allDays = eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) })
+        .map(d => {
+          const key = format(d, 'yyyy-MM-dd');
+          return aggregated[key] || { date: key, spend: 0, clicks: 0, conversions_meta: 0 };
+        });
+      setDailyData(allDays);
     } catch (error) {
       console.error('データ取得エラー:', error);
     } finally {
@@ -309,43 +328,74 @@ const Dashboard = () => {
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={dailyData}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-            <XAxis 
-              dataKey="date" 
+            <XAxis
+              dataKey="date"
               stroke="var(--text-secondary)"
-              tick={{ fill: 'var(--text-secondary)' }}
+              tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+              interval={dailyData.length <= 7 ? 0 : dailyData.length <= 14 ? 1 : dailyData.length <= 31 ? 2 : Math.floor(dailyData.length / 10)}
+              tickFormatter={v => {
+                const d = new Date(v);
+                return `${d.getMonth() + 1}/${d.getDate()}`;
+              }}
             />
-            <YAxis 
-              stroke="var(--text-secondary)"
-              tick={{ fill: 'var(--text-secondary)' }}
+            {/* 左軸：消化金額（データ最大値に応じて動的スケール） */}
+            <YAxis
+              yAxisId="spend"
+              orientation="left"
+              stroke="#3b82f6"
+              tick={{ fill: '#3b82f6', fontSize: 11 }}
+              domain={[0, dataMax => Math.ceil(dataMax * 1.25 / 10000) * 10000 || 50000]}
+              tickFormatter={v => v === 0 ? '0' : v >= 10000 ? `${v/10000}万` : v.toLocaleString()}
+              width={56}
             />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'var(--bg-tertiary)', 
+            {/* 右軸：クリック数・CV */}
+            <YAxis
+              yAxisId="count"
+              orientation="right"
+              stroke="#10b981"
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              domain={[0, dataMax => Math.ceil(dataMax * 1.5) || 10]}
+              tickFormatter={v => v.toLocaleString()}
+              width={48}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'var(--bg-tertiary)',
                 border: '1px solid var(--border-color)',
                 borderRadius: '6px'
               }}
+              formatter={(value, name) => {
+                if (name === '消化金額') return [`¥${value.toLocaleString()}`, name];
+                return [value.toLocaleString(), name];
+              }}
             />
             <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="spend" 
-              stroke="var(--accent-blue)" 
+            <Line
+              yAxisId="spend"
+              type="monotone"
+              dataKey="spend"
+              stroke="#3b82f6"
               name="消化金額"
               strokeWidth={2}
+              dot={false}
             />
-            <Line 
-              type="monotone" 
-              dataKey="clicks" 
-              stroke="var(--accent-green)" 
+            <Line
+              yAxisId="count"
+              type="monotone"
+              dataKey="clicks"
+              stroke="#10b981"
               name="クリック数"
               strokeWidth={2}
+              dot={false}
             />
-            <Line 
-              type="monotone" 
-              dataKey="conversions_meta" 
-              stroke="var(--accent-orange)" 
+            <Line
+              yAxisId="count"
+              type="monotone"
+              dataKey="conversions_meta"
+              stroke="#f59e0b"
               name="CV (Meta)"
               strokeWidth={2}
+              dot={false}
             />
           </LineChart>
         </ResponsiveContainer>
