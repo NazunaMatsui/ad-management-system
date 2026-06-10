@@ -243,7 +243,7 @@ const Layout = ({ children }) => {
         </div>
       </aside>
 
-      <main style={{ marginLeft: '260px', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
+      <main style={{ marginLeft: '260px', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', overflowX: 'hidden' }}>
         {children}
       </main>
     </div>
