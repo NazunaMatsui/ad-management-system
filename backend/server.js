@@ -15,12 +15,14 @@ const authRoutes = require('./routes/auth');
 const campaignRoutes = require('./routes/campaigns');
 const metricRoutes = require('./routes/metrics');
 const memoRoutes = require('./routes/memos');
+const metaRoutes = require('./routes/meta');
 
 // API エンドポイント
 app.use('/api/auth', authRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/metrics', metricRoutes);
 app.use('/api/memos', memoRoutes);
+app.use('/api/meta', metaRoutes);
 
 // ヘルスチェック
 app.get('/health', (req, res) => {

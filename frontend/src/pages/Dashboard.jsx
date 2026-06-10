@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format, subDays, eachDayOfInterval, parseISO } from 'date-fns';
-import { metricsAPI, campaignAPI } from '../utils/api';
+import { metricsAPI, campaignAPI, metaAPI } from '../utils/api';
 import DatePicker from '../components/DatePicker';
 import {
   TrendingUp,
@@ -28,6 +28,8 @@ const Dashboard = () => {
   const [summary, setSummary] = useState(null);
   const [dailyData, setDailyData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState(null);
 
   useEffect(() => {
     fetchCampaigns();
@@ -101,6 +103,21 @@ const Dashboard = () => {
       console.error('データ取得エラー:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const syncMeta = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const res = await metaAPI.sync(startDate, endDate);
+      setSyncMessage({ type: 'success', text: res.data.message });
+      await fetchData();
+    } catch (error) {
+      const detail = error.response?.data?.detail || error.response?.data?.error || 'エラーが発生しました';
+      setSyncMessage({ type: 'error', text: detail });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -261,6 +278,34 @@ const Dashboard = () => {
           </div>
 
         </div>
+      </div>
+
+      {/* Meta同期 */}
+      <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <button
+          onClick={syncMeta}
+          disabled={syncing}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.45rem 1rem', borderRadius: '8px',
+            background: syncing ? '#94a3b8' : 'linear-gradient(135deg, #1877f2, #0d65d9)',
+            color: '#fff', border: 'none', fontSize: '0.825rem', fontWeight: '600',
+            cursor: syncing ? 'not-allowed' : 'pointer',
+            boxShadow: syncing ? 'none' : '0 2px 6px rgba(24,119,242,0.35)',
+            transition: 'all 0.15s',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+          {syncing ? '同期中...' : 'Meta データ同期'}
+        </button>
+        {syncMessage && (
+          <span style={{
+            fontSize: '0.8rem', fontWeight: '500',
+            color: syncMessage.type === 'success' ? '#10b981' : '#ef4444',
+          }}>
+            {syncMessage.type === 'success' ? '✓ ' : '✗ '}{syncMessage.text}
+          </span>
+        )}
       </div>
 
       {/* サマリーカード + KPI 一体化 */}

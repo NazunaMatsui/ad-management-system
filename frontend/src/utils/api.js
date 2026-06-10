@@ -69,4 +69,10 @@ export const memoAPI = {
   delete: (id) => api.delete(`/memos/${id}`)
 };
 
+// Meta API
+export const metaAPI = {
+  test: () => api.get('/meta/test'),
+  sync: (start_date, end_date) => api.post('/meta/sync', { start_date, end_date }),
+};
+
 export default api;
