@@ -76,7 +76,7 @@ router.post('/sync', async (req, res) => {
            impressions = EXCLUDED.impressions,
            clicks = EXCLUDED.clicks,
            conversions_meta = EXCLUDED.conversions_meta,
-           data_source = 'meta',
+           data_source = 'meta_api',
            updated_at = CURRENT_TIMESTAMP
          RETURNING *`,
         [internalCampaignId, date, spend, impressions, clicks, conversions]
