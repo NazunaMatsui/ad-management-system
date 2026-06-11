@@ -144,14 +144,14 @@ const Dashboard = () => {
     return new Intl.NumberFormat('ja-JP').format(value || 0);
   };
 
-  const StatCard = ({ icon: Icon, label, value, subValue, accent, bg, breakdownKey, breakdownFormat }) => {
+  const StatCard = ({ icon: Icon, label, value, subValue, accent, bg, breakdownKey, breakdownFormat, tooltipAlign = 'left' }) => {
     const [hovered, setHovered] = useState(false);
     const rows = campaignBreakdown.filter(r => parseFloat(r[breakdownKey] || 0) > 0);
     const showTooltip = hovered && rows.length > 1;
 
     return (
       <div
-        style={{ position: 'relative' }}
+        style={{ position: 'relative', height: '100%' }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -161,7 +161,7 @@ const Dashboard = () => {
           padding: '1.25rem 1.5rem',
           boxShadow: hovered ? `0 4px 16px ${accent}22` : '0 1px 4px rgba(0,0,0,0.05)',
           display: 'flex', alignItems: 'center', gap: '1rem',
-          transition: 'all 0.15s',
+          transition: 'all 0.15s', height: '100%', boxSizing: 'border-box',
         }}>
           <div style={{
             width: '46px', height: '46px', borderRadius: '12px',
@@ -170,31 +170,28 @@ const Dashboard = () => {
           }}>
             <Icon size={20} style={{ color: accent }} />
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '64px' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>
               {label}
             </div>
             <div style={{ fontSize: '1.6rem', fontWeight: '700', color: '#1e293b', lineHeight: 1.1 }}>
               {value}
             </div>
-            {subValue && (
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-                {subValue}
-              </div>
-            )}
+            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.25rem', minHeight: '1em' }}>
+              {subValue || ''}
+            </div>
           </div>
         </div>
 
         {/* ホバー時キャンペーン別内訳 */}
         {showTooltip && (
           <div style={{
-            position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 300,
+            position: 'absolute', top: 'calc(100% + 8px)', ...(tooltipAlign === 'right' ? { right: 0 } : { left: 0 }), zIndex: 300,
             backgroundColor: '#fff', borderRadius: '12px',
             border: '1px solid #e2e8f0',
             boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
             padding: '0.75rem', minWidth: '240px',
-            animation: 'fadeInDown 0.12s ease',
-          }}>
+                      }}>
             <div style={{ fontSize: '0.68rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
               キャンペーン別内訳
             </div>
@@ -209,6 +206,60 @@ const Dashboard = () => {
                 </span>
                 <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1e293b', flexShrink: 0 }}>
                   {breakdownFormat(parseFloat(r[breakdownKey] || 0))}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const KpiCard = ({ label, value, accent, bg, bkey, breakdown, fmt, tooltipAlign = 'left' }) => {
+    const [hovered, setHovered] = useState(false);
+    const rows = breakdown.filter(r => parseFloat(r[bkey] || 0) > 0);
+    const showTooltip = hovered && rows.length > 1;
+    return (
+      <div style={{ position: 'relative' }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <div style={{
+          backgroundColor: bg, borderRadius: '12px',
+          border: `1px solid ${hovered ? accent + '44' : accent + '18'}`,
+          padding: '1rem 1.25rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          boxShadow: hovered ? `0 4px 12px ${accent}22` : 'none',
+          transition: 'all 0.15s',
+        }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: '700', color: accent, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {label}
+          </span>
+          <span style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e293b' }}>
+            {value}
+          </span>
+        </div>
+        {showTooltip && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 8px)', ...(tooltipAlign === 'right' ? { right: 0 } : { left: 0 }), zIndex: 300,
+            backgroundColor: '#fff', borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            padding: '0.75rem', minWidth: '240px',
+                      }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
+              キャンペーン別内訳
+            </div>
+            {rows.map(r => (
+              <div key={r.campaign_id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '0.3rem 0', borderBottom: '1px solid #f8fafc', gap: '0.5rem',
+              }}>
+                <span style={{ fontSize: '0.78rem', color: '#475569', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.campaign_name}
+                </span>
+                <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1e293b', flexShrink: 0 }}>
+                  {fmt(parseFloat(r[bkey] || 0))}
                 </span>
               </div>
             ))}
@@ -463,22 +514,24 @@ const Dashboard = () => {
               breakdownKey="total_spend"
               breakdownFormat={v => `¥${Math.round(v).toLocaleString()}`} />
             <StatCard icon={Eye} label="インプレッション"
-              value={formatNumber(summary.total_impressions)}
+              value={`${formatNumber(summary.total_impressions)}回`}
               accent="#10b981" bg="#f0fdf4"
               breakdownKey="total_impressions"
-              breakdownFormat={v => Math.round(v).toLocaleString()} />
+              breakdownFormat={v => `${Math.round(v).toLocaleString()}回`} />
             <StatCard icon={MousePointerClick} label="クリック数"
-              value={formatNumber(summary.total_clicks)}
+              value={`${formatNumber(summary.total_clicks)}回`}
               subValue={`CTR: ${summary.avg_ctr.toFixed(2)}%`}
               accent="#f59e0b" bg="#fffbeb"
               breakdownKey="total_clicks"
-              breakdownFormat={v => Math.round(v).toLocaleString()} />
+              breakdownFormat={v => `${Math.round(v).toLocaleString()}回`}
+              tooltipAlign="right" />
             <StatCard icon={Target} label="コンバージョン"
-              value={formatNumber(summary.total_conversions_meta + summary.total_conversions_booking)}
+              value={`${formatNumber(summary.total_conversions_meta + summary.total_conversions_booking)}件`}
               subValue={`Meta: ${summary.total_conversions_meta} / 予約: ${summary.total_conversions_booking}`}
               accent="#ef4444" bg="#fef2f2"
               breakdownKey="total_conversions_meta"
-              breakdownFormat={v => `${Math.round(v).toLocaleString()} CV`} />
+              breakdownFormat={v => `${Math.round(v).toLocaleString()}件`}
+              tooltipAlign="right" />
           </div>
 
           {/* KPI 帯 */}
@@ -487,24 +540,12 @@ const Dashboard = () => {
             gap: '1rem', marginBottom: '1.5rem'
           }}>
             {[
-              { label: 'CPA', value: formatCurrency(summary.avg_cpa), accent: '#6366f1', bg: '#f5f3ff' },
-              { label: 'CPC', value: formatCurrency(summary.avg_cpc), accent: '#0891b2', bg: '#ecfeff' },
-              { label: 'CTR', value: `${summary.avg_ctr.toFixed(2)}%`, accent: '#d97706', bg: '#fffbeb' },
-              { label: 'CVR', value: `${summary.avg_cvr.toFixed(2)}%`, accent: '#16a34a', bg: '#f0fdf4' },
+              { label: 'CPA', value: formatCurrency(summary.avg_cpa), accent: '#6366f1', bg: '#f5f3ff', bkey: 'avg_cpa', fmt: v => `¥${Math.round(v).toLocaleString()}` },
+              { label: 'CPC', value: formatCurrency(summary.avg_cpc), accent: '#0891b2', bg: '#ecfeff', bkey: 'avg_cpc', fmt: v => `¥${Math.round(v).toLocaleString()}` },
+              { label: 'CTR', value: `${summary.avg_ctr.toFixed(2)}%`, accent: '#d97706', bg: '#fffbeb', bkey: 'avg_ctr', fmt: v => `${v.toFixed(2)}%`, tooltipAlign: 'right' },
+              { label: 'CVR', value: `${summary.avg_cvr.toFixed(2)}%`, accent: '#16a34a', bg: '#f0fdf4', bkey: 'avg_cvr', fmt: v => `${v.toFixed(2)}%`, tooltipAlign: 'right' },
             ].map(k => (
-              <div key={k.label} style={{
-                backgroundColor: k.bg, borderRadius: '12px',
-                border: `1px solid ${k.accent}18`,
-                padding: '1rem 1.25rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-              }}>
-                <span style={{ fontSize: '0.72rem', fontWeight: '700', color: k.accent, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  {k.label}
-                </span>
-                <span style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e293b' }}>
-                  {k.value}
-                </span>
-              </div>
+              <KpiCard key={k.label} {...k} breakdown={campaignBreakdown} />
             ))}
           </div>
         </>

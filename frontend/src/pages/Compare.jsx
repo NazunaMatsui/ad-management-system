@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { format, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { metricsAPI, campaignAPI } from '../utils/api';
 import PeriodPicker from '../components/PeriodPicker';
@@ -63,49 +63,76 @@ const QUICK = [
   })},
 ];
 
+const LS = {
+  get: (k, def) => { try { const v = localStorage.getItem(k); return v !== null ? JSON.parse(v) : def; } catch { return def; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
 export default function Compare() {
-  const [afterStart,  setAfterStart]  = useState(daysAgo(6));
-  const [afterEnd,    setAfterEnd]    = useState(today());
-  const [beforeStart, setBeforeStart] = useState(daysAgo(13));
-  const [beforeEnd,   setBeforeEnd]   = useState(daysAgo(7));
-  const [campaign,    setCampaign]    = useState('all');
-  const [campaigns,   setCampaigns]   = useState([]);
+  const [afterStart,  setAfterStart]  = useState(() => LS.get('cmp_aS', daysAgo(6)));
+  const [afterEnd,    setAfterEnd]    = useState(() => LS.get('cmp_aE', today()));
+  const [beforeStart, setBeforeStart] = useState(() => LS.get('cmp_bS', daysAgo(13)));
+  const [beforeEnd,   setBeforeEnd]   = useState(() => LS.get('cmp_bE', daysAgo(7)));
+  const [selectedCampaigns, setSelectedCampaigns] = useState([]);
+  const [campaigns,         setCampaigns]         = useState([]);
+  const [dropdownOpen,      setDropdownOpen]      = useState(false);
+  const dropdownRef = useRef(null);
   const [afterData,   setAfterData]   = useState(null);
   const [beforeData,  setBeforeData]  = useState(null);
   const [loading,     setLoading]     = useState(false);
   const [compared,    setCompared]    = useState(false);
 
+  // 期間をlocalStorageに保存
+  const setAfterStartP  = v => { setAfterStart(v);  LS.set('cmp_aS', v); };
+  const setAfterEndP    = v => { setAfterEnd(v);    LS.set('cmp_aE', v); };
+  const setBeforeStartP = v => { setBeforeStart(v); LS.set('cmp_bS', v); };
+  const setBeforeEndP   = v => { setBeforeEnd(v);   LS.set('cmp_bE', v); };
+
   React.useEffect(() => {
     campaignAPI.getAll().then(r => setCampaigns(r.data)).catch(() => {});
   }, []);
 
-  const run = useCallback(async () => {
+  React.useEffect(() => {
+    const h = e => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // 日付 or キャンペーンが変わったら自動比較（すべての値をクロージャから直接参照）
+  React.useEffect(() => {
     if (!afterStart || !afterEnd || !beforeStart || !beforeEnd) return;
     setLoading(true);
-    try {
-      const base = campaign !== 'all' ? { campaign_id: campaign } : {};
-      const [aRes, bRes] = await Promise.all([
-        metricsAPI.get({ ...base, start_date: afterStart,  end_date: afterEnd }),
-        metricsAPI.get({ ...base, start_date: beforeStart, end_date: beforeEnd }),
-      ]);
+    const base = selectedCampaigns.length > 0 ? { campaign_ids: selectedCampaigns.join(',') } : {};
+    Promise.all([
+      metricsAPI.get({ ...base, start_date: afterStart,  end_date: afterEnd }),
+      metricsAPI.get({ ...base, start_date: beforeStart, end_date: beforeEnd }),
+    ]).then(([aRes, bRes]) => {
       setAfterData(calcSummary(aRes.data));
       setBeforeData(calcSummary(bRes.data));
       setCompared(true);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  }, [afterStart, afterEnd, beforeStart, beforeEnd, campaign]);
+    }).catch(e => console.error(e))
+      .finally(() => setLoading(false));
+  }, [afterStart, afterEnd, beforeStart, beforeEnd, selectedCampaigns]);
 
-  // 4つの日付が揃ったら自動比較
-  React.useEffect(() => {
-    if (afterStart && afterEnd && beforeStart && beforeEnd) {
-      run();
-    }
-  }, [afterStart, afterEnd, beforeStart, beforeEnd, campaign]);
+  const run = () => {
+    if (!afterStart || !afterEnd || !beforeStart || !beforeEnd) return;
+    setLoading(true);
+    const base = selectedCampaigns.length > 0 ? { campaign_ids: selectedCampaigns.join(',') } : {};
+    Promise.all([
+      metricsAPI.get({ ...base, start_date: afterStart,  end_date: afterEnd }),
+      metricsAPI.get({ ...base, start_date: beforeStart, end_date: beforeEnd }),
+    ]).then(([aRes, bRes]) => {
+      setAfterData(calcSummary(aRes.data));
+      setBeforeData(calcSummary(bRes.data));
+      setCompared(true);
+    }).catch(e => console.error(e))
+      .finally(() => setLoading(false));
+  };
 
   const applyQuick = (q) => {
     const { after, before } = q.apply();
-    setAfterStart(after.start); setAfterEnd(after.end);
-    setBeforeStart(before.start); setBeforeEnd(before.end);
+    setAfterStartP(after.start); setAfterEndP(after.end);
+    setBeforeStartP(before.start); setBeforeEndP(before.end);
   };
 
   const sectionLabel = {
@@ -139,18 +166,104 @@ export default function Compare() {
 
         {/* 上段：キャンペーン + クイック選択 */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1.25rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-          <div style={{ minWidth: '200px', flex: '0 0 200px' }}>
+          <div style={{ minWidth: '240px', flex: '0 0 240px' }} ref={dropdownRef}>
             <span style={sectionLabel}>キャンペーン</span>
             <div style={{ position: 'relative' }}>
-              <select
-                className="input" value={campaign}
-                onChange={e => setCampaign(e.target.value)}
-                style={{ appearance: 'none', paddingRight: '2rem', cursor: 'pointer', height: '38px' }}
+              <button
+                onClick={() => setDropdownOpen(o => !o)}
+                style={{
+                  width: '100%', height: '38px', padding: '0 2rem 0 0.875rem',
+                  border: '1px solid var(--border-color)', borderRadius: '6px',
+                  backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                  fontSize: '0.875rem', cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', alignItems: 'center',
+                }}
               >
-                <option value="all">すべて</option>
-                {campaigns.map(c => <option key={c.campaign_id} value={c.campaign_id}>{c.campaign_name}</option>)}
-              </select>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {selectedCampaigns.length === 0
+                    ? 'すべてのキャンペーン'
+                    : selectedCampaigns.length === 1
+                      ? campaigns.find(c => String(c.campaign_id) === selectedCampaigns[0])?.campaign_name || '1件選択'
+                      : `${selectedCampaigns.length}件選択`}
+                </span>
+              </button>
               <ChevronDown size={13} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+
+              {dropdownOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100,
+                  backgroundColor: '#fff', border: '1px solid var(--border-color)',
+                  borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  minWidth: '260px', maxHeight: '260px', overflowY: 'auto',
+                }}>
+                  <div
+                    onClick={() => setSelectedCampaigns([])}
+                    style={{
+                      padding: '0.6rem 0.875rem', cursor: 'pointer', display: 'flex',
+                      alignItems: 'center', gap: '0.625rem', fontSize: '0.875rem',
+                      borderBottom: '1px solid var(--border-color)',
+                      color: selectedCampaigns.length === 0 ? '#2563eb' : 'var(--text-primary)',
+                      fontWeight: selectedCampaigns.length === 0 ? '600' : '400',
+                      backgroundColor: selectedCampaigns.length === 0 ? '#eff6ff' : 'transparent',
+                    }}
+                    onMouseEnter={e => { if (selectedCampaigns.length !== 0) e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                    onMouseLeave={e => { if (selectedCampaigns.length !== 0) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <span style={{
+                      width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
+                      border: selectedCampaigns.length === 0 ? '2px solid #2563eb' : '1.5px solid #cbd5e1',
+                      backgroundColor: selectedCampaigns.length === 0 ? '#2563eb' : '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {selectedCampaigns.length === 0 && <svg width="9" height="9" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </span>
+                    すべてのキャンペーン
+                  </div>
+                  {campaigns.map(c => {
+                    const id = String(c.campaign_id);
+                    const checked = selectedCampaigns.includes(id);
+                    const toggle = () => setSelectedCampaigns(prev =>
+                      checked ? prev.filter(x => x !== id) : [...prev, id]
+                    );
+                    const statusCfg = {
+                      active:  { label: '運用中', bg: '#dcfce7', color: '#16a34a' },
+                      paused:  { label: '停止中', bg: '#fee2e2', color: '#dc2626' },
+                      testing: { label: 'テスト', bg: '#fef9c3', color: '#ca8a04' },
+                      ended:   { label: '終了',   bg: '#f1f5f9', color: '#64748b' },
+                    };
+                    const st = statusCfg[c.status] || statusCfg.ended;
+                    return (
+                      <div
+                        key={id} onClick={toggle}
+                        style={{
+                          padding: '0.6rem 0.875rem', cursor: 'pointer', display: 'flex',
+                          alignItems: 'center', gap: '0.625rem', fontSize: '0.875rem',
+                          color: checked ? '#2563eb' : 'var(--text-primary)',
+                          fontWeight: checked ? '600' : '400',
+                          backgroundColor: checked ? '#eff6ff' : 'transparent',
+                        }}
+                        onMouseEnter={e => { if (!checked) e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                        onMouseLeave={e => { if (!checked) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <span style={{
+                          width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
+                          border: checked ? '2px solid #2563eb' : '1.5px solid #cbd5e1',
+                          backgroundColor: checked ? '#2563eb' : '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {checked && <svg width="9" height="9" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.campaign_name}</span>
+                        <span style={{
+                          fontSize: '0.65rem', fontWeight: '600', padding: '0.1rem 0.4rem',
+                          borderRadius: '99px', backgroundColor: st.bg, color: st.color,
+                          flexShrink: 0,
+                        }}>{st.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -190,7 +303,7 @@ export default function Compare() {
             <PeriodPicker
               startDate={beforeStart}
               endDate={beforeEnd}
-              onChange={(s, e) => { setBeforeStart(s || ''); setBeforeEnd(e || ''); }}
+              onChange={(s, e) => { setBeforeStartP(s || ''); setBeforeEndP(e || ''); }}
               accentColor="#64748b"
               accentBg="#f1f5f9"
             />
@@ -212,7 +325,7 @@ export default function Compare() {
             <PeriodPicker
               startDate={afterStart}
               endDate={afterEnd}
-              onChange={(s, e) => { setAfterStart(s || ''); setAfterEnd(e || ''); }}
+              onChange={(s, e) => { setAfterStartP(s || ''); setAfterEndP(e || ''); }}
               accentColor="#3b82f6"
               accentBg="#eff6ff"
             />
