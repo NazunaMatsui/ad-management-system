@@ -24,11 +24,11 @@ const METRICS = [
 
 const calcSummary = (rows) => {
   const t = rows.reduce((acc, row) => {
-    acc.total_spend               += Number(row.spend || 0);
-    acc.total_impressions         += Number(row.impressions || 0);
-    acc.total_clicks              += Number(row.clicks || 0);
-    acc.total_conversions_meta    += Number(row.conversions_meta || 0);
-    acc.total_conversions_booking += Number(row.conversions_booking || 0);
+    acc.total_spend               += Number(row.total_spend || 0);
+    acc.total_impressions         += Number(row.total_impressions || 0);
+    acc.total_clicks              += Number(row.total_clicks || 0);
+    acc.total_conversions_meta    += Number(row.total_conversions_meta || 0);
+    acc.total_conversions_booking += Number(row.total_conversions_booking || 0);
     return acc;
   }, { total_spend:0, total_impressions:0, total_clicks:0, total_conversions_meta:0, total_conversions_booking:0 });
 
@@ -104,8 +104,8 @@ export default function Compare() {
     setLoading(true);
     const base = selectedCampaigns.length > 0 ? { campaign_ids: selectedCampaigns.join(',') } : {};
     Promise.all([
-      metricsAPI.get({ ...base, start_date: afterStart,  end_date: afterEnd }),
-      metricsAPI.get({ ...base, start_date: beforeStart, end_date: beforeEnd }),
+      metricsAPI.getSummary({ ...base, start_date: afterStart,  end_date: afterEnd }),
+      metricsAPI.getSummary({ ...base, start_date: beforeStart, end_date: beforeEnd }),
     ]).then(([aRes, bRes]) => {
       setAfterData(calcSummary(aRes.data));
       setBeforeData(calcSummary(bRes.data));
@@ -119,8 +119,8 @@ export default function Compare() {
     setLoading(true);
     const base = selectedCampaigns.length > 0 ? { campaign_ids: selectedCampaigns.join(',') } : {};
     Promise.all([
-      metricsAPI.get({ ...base, start_date: afterStart,  end_date: afterEnd }),
-      metricsAPI.get({ ...base, start_date: beforeStart, end_date: beforeEnd }),
+      metricsAPI.getSummary({ ...base, start_date: afterStart,  end_date: afterEnd }),
+      metricsAPI.getSummary({ ...base, start_date: beforeStart, end_date: beforeEnd }),
     ]).then(([aRes, bRes]) => {
       setAfterData(calcSummary(aRes.data));
       setBeforeData(calcSummary(bRes.data));
