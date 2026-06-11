@@ -22,21 +22,20 @@ const METRICS = [
   { key: 'avg_cvr',                   label: 'CVR',               format: fmtPct,  higher: 'good' },
 ];
 
-const calcSummary = (rows) => {
-  const t = rows.reduce((acc, row) => {
-    acc.total_spend               += Number(row.total_spend || 0);
-    acc.total_impressions         += Number(row.total_impressions || 0);
-    acc.total_clicks              += Number(row.total_clicks || 0);
-    acc.total_conversions_meta    += Number(row.total_conversions_meta || 0);
-    acc.total_conversions_booking += Number(row.total_conversions_booking || 0);
-    return acc;
-  }, { total_spend:0, total_impressions:0, total_clicks:0, total_conversions_meta:0, total_conversions_booking:0 });
-
-  t.total_cv  = t.total_conversions_meta + t.total_conversions_booking;
-  t.avg_cpa   = t.total_cv     > 0 ? t.total_spend / t.total_cv             : 0;
-  t.avg_cpc   = t.total_clicks > 0 ? t.total_spend / t.total_clicks         : 0;
-  t.avg_ctr   = t.total_impressions > 0 ? (t.total_clicks / t.total_impressions * 100) : 0;
-  t.avg_cvr   = t.total_clicks > 0 ? (t.total_cv / t.total_clicks * 100)   : 0;
+const aggregateSummary = (rows) => {
+  const t = rows.reduce((acc, item) => ({
+    total_spend:               (acc.total_spend               || 0) + parseFloat(item.total_spend               || 0),
+    total_impressions:         (acc.total_impressions         || 0) + parseInt(item.total_impressions           || 0),
+    total_clicks:              (acc.total_clicks              || 0) + parseInt(item.total_clicks                || 0),
+    total_conversions_meta:    (acc.total_conversions_meta    || 0) + parseInt(item.total_conversions_meta      || 0),
+    total_conversions_booking: (acc.total_conversions_booking || 0) + parseInt(item.total_conversions_booking   || 0),
+  }), {});
+  const totalCV = (t.total_conversions_meta || 0) + (t.total_conversions_booking || 0);
+  t.total_cv = totalCV;
+  t.avg_cpa  = (t.total_conversions_booking || 0) > 0 ? t.total_spend / t.total_conversions_booking : 0;
+  t.avg_cpc  = (t.total_clicks || 0) > 0 ? t.total_spend / t.total_clicks : 0;
+  t.avg_ctr  = (t.total_impressions || 0) > 0 ? (t.total_clicks / t.total_impressions * 100) : 0;
+  t.avg_cvr  = (t.total_clicks || 0) > 0 ? (totalCV / t.total_clicks * 100) : 0;
   return t;
 };
 
@@ -98,36 +97,30 @@ export default function Compare() {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // 日付 or キャンペーンが変わったら自動比較（すべての値をクロージャから直接参照）
-  React.useEffect(() => {
-    if (!afterStart || !afterEnd || !beforeStart || !beforeEnd) return;
+  const fetchCompareData = async (campaignFilter, aS, aE, bS, bE) => {
+    if (!aS || !aE || !bS || !bE) return;
     setLoading(true);
-    const base = selectedCampaigns.length > 0 ? { campaign_ids: selectedCampaigns.join(',') } : {};
-    Promise.all([
-      metricsAPI.getSummary({ ...base, start_date: afterStart,  end_date: afterEnd }),
-      metricsAPI.getSummary({ ...base, start_date: beforeStart, end_date: beforeEnd }),
-    ]).then(([aRes, bRes]) => {
-      setAfterData(calcSummary(aRes.data));
-      setBeforeData(calcSummary(bRes.data));
+    try {
+      const base = campaignFilter.length > 0 ? { campaign_ids: campaignFilter.join(',') } : {};
+      const [aRes, bRes] = await Promise.all([
+        metricsAPI.getSummary({ ...base, start_date: aS, end_date: aE }),
+        metricsAPI.getSummary({ ...base, start_date: bS, end_date: bE }),
+      ]);
+      setAfterData(aggregateSummary(aRes.data));
+      setBeforeData(aggregateSummary(bRes.data));
       setCompared(true);
-    }).catch(e => console.error(e))
-      .finally(() => setLoading(false));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchCompareData(selectedCampaigns, afterStart, afterEnd, beforeStart, beforeEnd);
   }, [afterStart, afterEnd, beforeStart, beforeEnd, selectedCampaigns]);
 
-  const run = () => {
-    if (!afterStart || !afterEnd || !beforeStart || !beforeEnd) return;
-    setLoading(true);
-    const base = selectedCampaigns.length > 0 ? { campaign_ids: selectedCampaigns.join(',') } : {};
-    Promise.all([
-      metricsAPI.getSummary({ ...base, start_date: afterStart,  end_date: afterEnd }),
-      metricsAPI.getSummary({ ...base, start_date: beforeStart, end_date: beforeEnd }),
-    ]).then(([aRes, bRes]) => {
-      setAfterData(calcSummary(aRes.data));
-      setBeforeData(calcSummary(bRes.data));
-      setCompared(true);
-    }).catch(e => console.error(e))
-      .finally(() => setLoading(false));
-  };
+  const run = () => fetchCompareData(selectedCampaigns, afterStart, afterEnd, beforeStart, beforeEnd);
 
   const applyQuick = (q) => {
     const { after, before } = q.apply();
