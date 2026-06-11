@@ -52,8 +52,6 @@ router.get('/', async (req, res) => {
 // 集計データ取得（期間合算）
 router.get('/summary', async (req, res) => {
   const { start_date, end_date, campaign_id, campaign_ids } = req.query;
-  console.log('[/metrics/summary] query:', req.query);
-
   try {
     let query = `
       SELECT
