@@ -55,6 +55,7 @@ async function syncMetaData(startDate, endDate) {
   });
   const campaignStatusMap = {};
   for (const c of campaignsRes.data.data || []) {
+    console.log(`[Meta Campaign] id=${c.id} name=${c.name} effective_status=${c.effective_status}`);
     campaignStatusMap[c.id] = toSystemStatus(c.effective_status);
   }
 

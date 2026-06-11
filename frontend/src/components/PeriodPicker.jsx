@@ -37,6 +37,7 @@ export default function PeriodPicker({ startDate, endDate, onChange, accentColor
   const nextMonth = () => viewM === 12? (setViewY(y=>y+1), setViewM(1))  : setViewM(m=>m+1);
 
   const handleClick = (dateStr) => {
+    if (dateStr > todayStr) return;
     if (!startDate || (startDate && endDate)) {
       onChange(dateStr, null);       // 1回目 or リセット後
     } else if (dateStr < startDate) {
@@ -171,14 +172,15 @@ export default function PeriodPicker({ startDate, endDate, onChange, accentColor
                   const isEd = isEnd(ds);
                   const isEdge = isSt || isEd;
                   const isT  = ds === todayStr;
+                  const isFuture = ds > todayStr;
                   const dow  = (firstDow + d - 1) % 7;
 
                   return (
                     <div key={d}
                       onClick={()=>handleClick(ds)}
-                      onMouseEnter={()=>{ if(startDate && !endDate) setHoverDate(ds); }}
+                      onMouseEnter={()=>{ if(startDate && !endDate && !isFuture) setHoverDate(ds); }}
                       style={{
-                        position:'relative', cursor:'pointer',
+                        position:'relative', cursor: isFuture ? 'not-allowed' : 'pointer',
                         backgroundColor: inR ? `${accentColor}18` : 'transparent',
                         borderRadius: isSt&&isEd?'8px' : isSt?'8px 0 0 8px' : isEd?'0 8px 8px 0' : '0',
                       }}
@@ -187,13 +189,13 @@ export default function PeriodPicker({ startDate, endDate, onChange, accentColor
                         display:'flex', alignItems:'center', justifyContent:'center',
                         height:'34px', borderRadius:'8px',
                         backgroundColor: isEdge ? accentColor : 'transparent',
-                        color: isEdge?'#fff' : isT?accentColor : dow===0?'#ef4444' : dow===6?accentColor : '#374151',
+                        color: isFuture ? '#d1d5db' : isEdge?'#fff' : isT?accentColor : dow===0?'#ef4444' : dow===6?accentColor : '#374151',
                         fontSize:'0.82rem',
                         fontWeight: isEdge||isT ? '700':'400',
                         boxShadow: isEdge?`0 2px 8px ${accentColor}55` : isT&&!isEdge?`inset 0 0 0 1.5px ${accentColor}66`:'none',
                         transition:'background 0.1s'
                       }}
-                        onMouseEnter={e=>{ if(!isEdge) e.currentTarget.style.backgroundColor='#f1f5f9'; }}
+                        onMouseEnter={e=>{ if(!isEdge && !isFuture) e.currentTarget.style.backgroundColor='#f1f5f9'; }}
                         onMouseLeave={e=>{ if(!isEdge) e.currentTarget.style.backgroundColor='transparent'; }}
                       >{d}</div>
                     </div>

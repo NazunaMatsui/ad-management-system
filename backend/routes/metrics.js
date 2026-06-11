@@ -7,17 +7,12 @@ router.use(authenticateToken);
 
 // 日次指標取得（期間・キャンペーン指定）
 router.get('/', async (req, res) => {
-  const { start_date, end_date, campaign_id } = req.query;
-  
+  const { start_date, end_date, campaign_id, campaign_ids } = req.query;
+
   try {
     let query = 'SELECT dm.*, c.campaign_name FROM daily_metrics dm JOIN campaigns c ON dm.campaign_id = c.campaign_id WHERE 1=1';
     const params = [];
     let paramCount = 1;
-
-    // 全キャンペーン表示時は運用中のみ集計
-    if (!campaign_id) {
-      query += ` AND c.status = 'active'`;
-    }
 
     if (start_date) {
       query += ` AND dm.date >= $${paramCount}`;
@@ -31,14 +26,21 @@ router.get('/', async (req, res) => {
       paramCount++;
     }
 
-    if (campaign_id) {
+    if (campaign_ids) {
+      const ids = campaign_ids.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+      if (ids.length > 0) {
+        query += ` AND dm.campaign_id = ANY($${paramCount}::int[])`;
+        params.push(ids);
+        paramCount++;
+      }
+    } else if (campaign_id) {
       query += ` AND dm.campaign_id = $${paramCount}`;
       params.push(campaign_id);
       paramCount++;
     }
 
     query += ' ORDER BY dm.date DESC, dm.campaign_id';
-    
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
@@ -49,11 +51,11 @@ router.get('/', async (req, res) => {
 
 // 集計データ取得（期間合算）
 router.get('/summary', async (req, res) => {
-  const { start_date, end_date, campaign_id } = req.query;
-  
+  const { start_date, end_date, campaign_id, campaign_ids } = req.query;
+
   try {
     let query = `
-      SELECT 
+      SELECT
         c.campaign_id,
         c.campaign_name,
         SUM(dm.spend) as total_spend,
@@ -66,20 +68,20 @@ router.get('/summary', async (req, res) => {
           THEN SUM(dm.spend) / SUM(dm.conversions_booking)
           ELSE 0
         END as avg_cpa,
-        CASE 
-          WHEN SUM(dm.clicks) > 0 
+        CASE
+          WHEN SUM(dm.clicks) > 0
           THEN SUM(dm.spend) / SUM(dm.clicks)
-          ELSE 0 
+          ELSE 0
         END as avg_cpc,
-        CASE 
-          WHEN SUM(dm.impressions) > 0 
+        CASE
+          WHEN SUM(dm.impressions) > 0
           THEN (SUM(dm.clicks)::DECIMAL / SUM(dm.impressions) * 100)
-          ELSE 0 
+          ELSE 0
         END as avg_ctr,
-        CASE 
-          WHEN SUM(dm.clicks) > 0 
+        CASE
+          WHEN SUM(dm.clicks) > 0
           THEN (SUM(dm.conversions_meta + dm.conversions_booking)::DECIMAL / SUM(dm.clicks) * 100)
-          ELSE 0 
+          ELSE 0
         END as avg_cvr
       FROM daily_metrics dm
       JOIN campaigns c ON dm.campaign_id = c.campaign_id
@@ -88,11 +90,6 @@ router.get('/summary', async (req, res) => {
 
     const params = [];
     let paramCount = 1;
-
-    // 全キャンペーン表示時は運用中のみ集計
-    if (!campaign_id) {
-      query += ` AND c.status = 'active'`;
-    }
 
     if (start_date) {
       query += ` AND dm.date >= $${paramCount}`;
@@ -106,14 +103,21 @@ router.get('/summary', async (req, res) => {
       paramCount++;
     }
 
-    if (campaign_id) {
+    if (campaign_ids) {
+      const ids = campaign_ids.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+      if (ids.length > 0) {
+        query += ` AND dm.campaign_id = ANY($${paramCount}::int[])`;
+        params.push(ids);
+        paramCount++;
+      }
+    } else if (campaign_id) {
       query += ` AND dm.campaign_id = $${paramCount}`;
       params.push(campaign_id);
       paramCount++;
     }
 
     query += ' GROUP BY c.campaign_id, c.campaign_name ORDER BY c.campaign_id';
-    
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {

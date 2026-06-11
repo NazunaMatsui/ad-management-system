@@ -10,7 +10,9 @@ router.use(authenticateToken);
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM campaigns WHERE is_active = true ORDER BY campaign_id'
+      `SELECT * FROM campaigns WHERE is_active = true ORDER BY
+        CASE status WHEN 'active' THEN 1 WHEN 'testing' THEN 2 WHEN 'paused' THEN 3 ELSE 4 END,
+        campaign_id`
     );
     res.json(result.rows);
   } catch (error) {

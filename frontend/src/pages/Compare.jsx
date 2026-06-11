@@ -10,7 +10,7 @@ const fmtNum = (v) => new Intl.NumberFormat('ja-JP').format(Math.round(Number(v)
 const fmtPct = (v) => `${(Number(v) || 0).toFixed(2)}%`;
 
 const METRICS = [
-  { key: 'total_spend',               label: '消化金額',          format: fmtYen,  higher: 'neutral' },
+  { key: 'total_spend',               label: '消化金額',          format: fmtYen,  higher: 'good' },
   { key: 'total_impressions',         label: 'インプレッション',  format: fmtNum,  higher: 'good' },
   { key: 'total_clicks',              label: 'クリック数',        format: fmtNum,  higher: 'good' },
   { key: 'total_conversions_meta',    label: 'CV（Meta）',        format: fmtNum,  higher: 'good' },

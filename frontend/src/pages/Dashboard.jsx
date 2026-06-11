@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { format, subDays, eachDayOfInterval, parseISO } from 'date-fns';
 import { metricsAPI, campaignAPI, metaAPI } from '../utils/api';
 import DatePicker from '../components/DatePicker';
@@ -22,10 +22,13 @@ const labelStyle = {
 
 const Dashboard = () => {
   const [campaigns, setCampaigns] = useState([]);
-  const [selectedCampaign, setSelectedCampaign] = useState('all');
+  const [selectedCampaigns, setSelectedCampaigns] = useState([]); // 空 = すべて
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 7), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [summary, setSummary] = useState(null);
+  const [campaignBreakdown, setCampaignBreakdown] = useState([]);
   const [dailyData, setDailyData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -36,8 +39,17 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [startDate, endDate, selectedCampaign]);
+    fetchData(selectedCampaigns);
+  }, [startDate, endDate, selectedCampaigns]);
+
+  // ドロップダウン外クリックで閉じる
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   const fetchCampaigns = async () => {
     try {
@@ -48,19 +60,22 @@ const Dashboard = () => {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (campaignFilter = selectedCampaigns) => {
     setLoading(true);
     try {
       const params = {
         start_date: startDate,
         end_date: endDate,
-        ...(selectedCampaign !== 'all' && { campaign_id: selectedCampaign })
+        ...(campaignFilter.length > 0 && { campaign_ids: campaignFilter.join(',') }),
       };
 
       const [summaryRes, dailyRes] = await Promise.all([
         metricsAPI.getSummary(params),
         metricsAPI.get(params)
       ]);
+
+      // キャンペーン別内訳を保存（ホバー表示用）
+      setCampaignBreakdown(summaryRes.data);
 
       // サマリーデータの集計
       const totalSummary = summaryRes.data.reduce((acc, item) => ({
@@ -72,11 +87,11 @@ const Dashboard = () => {
       }), {});
 
       // KPI計算
-      const totalCV = totalSummary.total_conversions_meta + totalSummary.total_conversions_booking;
-      totalSummary.avg_cpa = totalSummary.total_conversions_booking > 0 ? totalSummary.total_spend / totalSummary.total_conversions_booking : 0;
-      totalSummary.avg_cpc = totalSummary.total_clicks > 0 ? totalSummary.total_spend / totalSummary.total_clicks : 0;
-      totalSummary.avg_ctr = totalSummary.total_impressions > 0 ? (totalSummary.total_clicks / totalSummary.total_impressions * 100) : 0;
-      totalSummary.avg_cvr = totalSummary.total_clicks > 0 ? (totalCV / totalSummary.total_clicks * 100) : 0;
+      const totalCV = (totalSummary.total_conversions_meta || 0) + (totalSummary.total_conversions_booking || 0);
+      totalSummary.avg_cpa = (totalSummary.total_conversions_booking || 0) > 0 ? totalSummary.total_spend / totalSummary.total_conversions_booking : 0;
+      totalSummary.avg_cpc = (totalSummary.total_clicks || 0) > 0 ? totalSummary.total_spend / totalSummary.total_clicks : 0;
+      totalSummary.avg_ctr = (totalSummary.total_impressions || 0) > 0 ? (totalSummary.total_clicks / totalSummary.total_impressions * 100) : 0;
+      totalSummary.avg_cvr = (totalSummary.total_clicks || 0) > 0 ? (totalCV / totalSummary.total_clicks * 100) : 0;
 
       setSummary(totalSummary);
 
@@ -129,37 +144,79 @@ const Dashboard = () => {
     return new Intl.NumberFormat('ja-JP').format(value || 0);
   };
 
-  const StatCard = ({ icon: Icon, label, value, subValue, accent, bg }) => (
-    <div style={{
-      backgroundColor: '#ffffff', borderRadius: '14px',
-      border: '1px solid #f1f5f9', padding: '1.25rem 1.5rem',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-      display: 'flex', alignItems: 'center', gap: '1rem'
-    }}>
-      {/* アイコンバッジ */}
-      <div style={{
-        width: '46px', height: '46px', borderRadius: '12px',
-        backgroundColor: bg, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', flexShrink: 0
-      }}>
-        <Icon size={20} style={{ color: accent }} />
-      </div>
-      {/* テキスト */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '0.72rem', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>
-          {label}
+  const StatCard = ({ icon: Icon, label, value, subValue, accent, bg, breakdownKey, breakdownFormat }) => {
+    const [hovered, setHovered] = useState(false);
+    const rows = campaignBreakdown.filter(r => parseFloat(r[breakdownKey] || 0) > 0);
+    const showTooltip = hovered && rows.length > 1;
+
+    return (
+      <div
+        style={{ position: 'relative' }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <div style={{
+          backgroundColor: '#ffffff', borderRadius: '14px',
+          border: `1px solid ${hovered ? accent + '44' : '#f1f5f9'}`,
+          padding: '1.25rem 1.5rem',
+          boxShadow: hovered ? `0 4px 16px ${accent}22` : '0 1px 4px rgba(0,0,0,0.05)',
+          display: 'flex', alignItems: 'center', gap: '1rem',
+          transition: 'all 0.15s',
+        }}>
+          <div style={{
+            width: '46px', height: '46px', borderRadius: '12px',
+            backgroundColor: bg, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', flexShrink: 0
+          }}>
+            <Icon size={20} style={{ color: accent }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem' }}>
+              {label}
+            </div>
+            <div style={{ fontSize: '1.6rem', fontWeight: '700', color: '#1e293b', lineHeight: 1.1 }}>
+              {value}
+            </div>
+            {subValue && (
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                {subValue}
+              </div>
+            )}
+          </div>
         </div>
-        <div style={{ fontSize: '1.6rem', fontWeight: '700', color: '#1e293b', lineHeight: 1.1 }}>
-          {value}
-        </div>
-        {subValue && (
-          <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-            {subValue}
+
+        {/* ホバー時キャンペーン別内訳 */}
+        {showTooltip && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 300,
+            backgroundColor: '#fff', borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            padding: '0.75rem', minWidth: '240px',
+            animation: 'fadeInDown 0.12s ease',
+          }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
+              キャンペーン別内訳
+            </div>
+            {rows.map(r => (
+              <div key={r.campaign_id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '0.3rem 0', borderBottom: '1px solid #f8fafc',
+                gap: '0.5rem',
+              }}>
+                <span style={{ fontSize: '0.78rem', color: '#475569', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.campaign_name}
+                </span>
+                <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1e293b', flexShrink: 0 }}>
+                  {breakdownFormat(parseFloat(r[breakdownKey] || 0))}
+                </span>
+              </div>
+            ))}
           </div>
         )}
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading && !summary) {
     return (
@@ -200,22 +257,108 @@ const Dashboard = () => {
       <div className="card" style={{ marginBottom: '2rem', padding: '1rem 1.25rem' }}>
         <div style={{ display: 'flex', gap: '0', flexWrap: 'wrap', alignItems: 'stretch' }}>
 
-          {/* キャンペーン選択 */}
-          <div style={{ flex: '0 0 220px', padding: '0 1rem 0 0' }}>
+          {/* キャンペーン複数選択 */}
+          <div style={{ flex: '0 0 240px', padding: '0 1rem 0 0' }} ref={dropdownRef}>
             <label style={labelStyle}>キャンペーン</label>
             <div style={{ position: 'relative' }}>
-              <select
-                className="input"
-                value={selectedCampaign}
-                onChange={(e) => setSelectedCampaign(e.target.value)}
-                style={{ appearance: 'none', paddingRight: '2rem', cursor: 'pointer', height: '38px' }}
+              <button
+                onClick={() => setDropdownOpen(o => !o)}
+                style={{
+                  width: '100%', height: '38px', padding: '0 2rem 0 0.875rem',
+                  border: '1px solid var(--border-color)', borderRadius: '6px',
+                  backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                  fontSize: '0.875rem', cursor: 'pointer', textAlign: 'left',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  display: 'flex', alignItems: 'center',
+                }}
               >
-                <option value="all">すべてのキャンペーン</option>
-                {campaigns.map(c => (
-                  <option key={c.campaign_id} value={c.campaign_id}>{c.campaign_name}</option>
-                ))}
-              </select>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {selectedCampaigns.length === 0
+                    ? 'すべてのキャンペーン'
+                    : selectedCampaigns.length === 1
+                      ? campaigns.find(c => String(c.campaign_id) === selectedCampaigns[0])?.campaign_name || '1件選択'
+                      : `${selectedCampaigns.length}件選択`}
+                </span>
+              </button>
               <ChevronDown size={13} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+
+              {dropdownOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100,
+                  backgroundColor: '#fff', border: '1px solid var(--border-color)',
+                  borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  minWidth: '260px', maxHeight: '260px', overflowY: 'auto',
+                }}>
+                  {/* すべて */}
+                  <div
+                    onClick={() => setSelectedCampaigns([])}
+                    style={{
+                      padding: '0.6rem 0.875rem', cursor: 'pointer', display: 'flex',
+                      alignItems: 'center', gap: '0.625rem', fontSize: '0.875rem',
+                      borderBottom: '1px solid var(--border-color)',
+                      color: selectedCampaigns.length === 0 ? '#2563eb' : 'var(--text-primary)',
+                      fontWeight: selectedCampaigns.length === 0 ? '600' : '400',
+                      backgroundColor: selectedCampaigns.length === 0 ? '#eff6ff' : 'transparent',
+                    }}
+                    onMouseEnter={e => { if (selectedCampaigns.length !== 0) e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                    onMouseLeave={e => { if (selectedCampaigns.length !== 0) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <span style={{
+                      width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
+                      border: selectedCampaigns.length === 0 ? '2px solid #2563eb' : '1.5px solid #cbd5e1',
+                      backgroundColor: selectedCampaigns.length === 0 ? '#2563eb' : '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {selectedCampaigns.length === 0 && <svg width="9" height="9" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </span>
+                    すべてのキャンペーン
+                  </div>
+                  {campaigns.map(c => {
+                    const id = String(c.campaign_id);
+                    const checked = selectedCampaigns.includes(id);
+                    const toggle = () => setSelectedCampaigns(prev =>
+                      checked ? prev.filter(x => x !== id) : [...prev, id]
+                    );
+                    const statusCfg = {
+                      active:  { label: '運用中', bg: '#dcfce7', color: '#16a34a' },
+                      paused:  { label: '停止中', bg: '#fee2e2', color: '#dc2626' },
+                      testing: { label: 'テスト', bg: '#fef9c3', color: '#ca8a04' },
+                      ended:   { label: '終了',   bg: '#f1f5f9', color: '#64748b' },
+                    };
+                    const st = statusCfg[c.status] || statusCfg.ended;
+                    return (
+                      <div
+                        key={id}
+                        onClick={toggle}
+                        style={{
+                          padding: '0.6rem 0.875rem', cursor: 'pointer', display: 'flex',
+                          alignItems: 'center', gap: '0.625rem', fontSize: '0.875rem',
+                          color: checked ? '#2563eb' : 'var(--text-primary)',
+                          fontWeight: checked ? '600' : '400',
+                          backgroundColor: checked ? '#eff6ff' : 'transparent',
+                        }}
+                        onMouseEnter={e => { if (!checked) e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                        onMouseLeave={e => { if (!checked) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <span style={{
+                          width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
+                          border: checked ? '2px solid #2563eb' : '1.5px solid #cbd5e1',
+                          backgroundColor: checked ? '#2563eb' : '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {checked && <svg width="9" height="9" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.campaign_name}</span>
+                        <span style={{
+                          fontSize: '0.65rem', fontWeight: '600', padding: '0.1rem 0.4rem',
+                          borderRadius: '99px', backgroundColor: st.bg, color: st.color,
+                          flexShrink: 0, letterSpacing: '0.02em',
+                        }}>{st.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -230,7 +373,7 @@ const Dashboard = () => {
                 value={startDate}
                 onChange={setStartDate}
                 placeholder="開始日"
-                maxDate={endDate || undefined}
+                maxDate={endDate || format(new Date(), 'yyyy-MM-dd')}
               />
             </div>
             <div style={{ color: '#d1d5db', paddingBottom: '9px', flexShrink: 0, fontSize: '0.9rem' }}>—</div>
@@ -241,6 +384,7 @@ const Dashboard = () => {
                 onChange={setEndDate}
                 placeholder="終了日"
                 minDate={startDate || undefined}
+                maxDate={format(new Date(), 'yyyy-MM-dd')}
               />
             </div>
           </div>
@@ -315,18 +459,26 @@ const Dashboard = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: '1rem' }}>
             <StatCard icon={DollarSign} label="消化金額"
               value={formatCurrency(summary.total_spend)}
-              accent="#3b82f6" bg="#eff6ff" />
+              accent="#3b82f6" bg="#eff6ff"
+              breakdownKey="total_spend"
+              breakdownFormat={v => `¥${Math.round(v).toLocaleString()}`} />
             <StatCard icon={Eye} label="インプレッション"
               value={formatNumber(summary.total_impressions)}
-              accent="#10b981" bg="#f0fdf4" />
+              accent="#10b981" bg="#f0fdf4"
+              breakdownKey="total_impressions"
+              breakdownFormat={v => Math.round(v).toLocaleString()} />
             <StatCard icon={MousePointerClick} label="クリック数"
               value={formatNumber(summary.total_clicks)}
               subValue={`CTR: ${summary.avg_ctr.toFixed(2)}%`}
-              accent="#f59e0b" bg="#fffbeb" />
+              accent="#f59e0b" bg="#fffbeb"
+              breakdownKey="total_clicks"
+              breakdownFormat={v => Math.round(v).toLocaleString()} />
             <StatCard icon={Target} label="コンバージョン"
               value={formatNumber(summary.total_conversions_meta + summary.total_conversions_booking)}
               subValue={`Meta: ${summary.total_conversions_meta} / 予約: ${summary.total_conversions_booking}`}
-              accent="#ef4444" bg="#fef2f2" />
+              accent="#ef4444" bg="#fef2f2"
+              breakdownKey="total_conversions_meta"
+              breakdownFormat={v => `${Math.round(v).toLocaleString()} CV`} />
           </div>
 
           {/* KPI 帯 */}

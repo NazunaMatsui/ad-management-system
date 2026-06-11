@@ -30,6 +30,7 @@ export default function RangePicker({ startDate, endDate, onChange, accentColor 
   const nextMonth = () => { if (viewM === 12){ setViewY(y=>y+1); setViewM(1);  } else setViewM(m=>m+1); };
 
   const handleDayClick = (dateStr) => {
+    if (dateStr > todayStr) return;
     if (!startDate || (startDate && endDate)) {
       // 最初のクリック or 再選択
       onChange(dateStr, null);
@@ -163,6 +164,7 @@ export default function RangePicker({ startDate, endDate, onChange, accentColor 
 
               const dateStr  = toStr(viewY, viewM, d);
               const isToday  = dateStr === todayStr;
+              const isFuture = dateStr > todayStr;
               const inRange  = isInRange(dateStr);
               const isEdge   = isRangeEdge(dateStr);
               const isSt     = isStart(dateStr);
@@ -177,9 +179,9 @@ export default function RangePicker({ startDate, endDate, onChange, accentColor 
                 <div
                   key={d}
                   onClick={() => handleDayClick(dateStr)}
-                  onMouseEnter={() => !endDate && startDate && setHoverDate(dateStr)}
+                  onMouseEnter={() => !endDate && startDate && !isFuture && setHoverDate(dateStr)}
                   style={{
-                    position: 'relative', cursor: 'pointer',
+                    position: 'relative', cursor: isFuture ? 'not-allowed' : 'pointer',
                     backgroundColor: inRange
                       ? (accentColor === '#3b82f6' ? 'rgba(59,130,246,0.1)' : 'rgba(107,114,128,0.08)')
                       : 'transparent',
@@ -190,7 +192,8 @@ export default function RangePicker({ startDate, endDate, onChange, accentColor 
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     height: '34px', borderRadius: '8px',
                     backgroundColor: isEdge ? accentColor : 'transparent',
-                    color: isEdge ? '#ffffff'
+                    color: isFuture ? '#d1d5db'
+                      : isEdge ? '#ffffff'
                       : isToday ? accentColor
                       : dow === 0 ? '#ef4444'
                       : dow === 6 ? accentColor
@@ -200,7 +203,7 @@ export default function RangePicker({ startDate, endDate, onChange, accentColor 
                     boxShadow: isEdge ? `0 2px 8px ${accentColor}55` : isToday && !isEdge ? `inset 0 0 0 1.5px ${accentColor}66` : 'none',
                     transition: 'all 0.1s',
                   }}
-                    onMouseEnter={e => { if (!isEdge) e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+                    onMouseEnter={e => { if (!isEdge && !isFuture) e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
                     onMouseLeave={e => { if (!isEdge) e.currentTarget.style.backgroundColor = 'transparent'; }}
                   >
                     {d}
