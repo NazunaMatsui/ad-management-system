@@ -29,8 +29,8 @@ router.get('/', async (req, res) => {
     if (campaign_ids) {
       const ids = campaign_ids.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id));
       if (ids.length > 0) {
-        query += ` AND dm.campaign_id = ANY($${paramCount}::int[])`;
-        params.push(ids);
+        query += ` AND dm.campaign_id = ANY(string_to_array($${paramCount}, ',')::int[])`;
+        params.push(ids.join(','));
         paramCount++;
       }
     } else if (campaign_id) {
@@ -106,8 +106,8 @@ router.get('/summary', async (req, res) => {
     if (campaign_ids) {
       const ids = campaign_ids.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id));
       if (ids.length > 0) {
-        query += ` AND dm.campaign_id = ANY($${paramCount}::int[])`;
-        params.push(ids);
+        query += ` AND dm.campaign_id = ANY(string_to_array($${paramCount}, ',')::int[])`;
+        params.push(ids.join(','));
         paramCount++;
       }
     } else if (campaign_id) {

@@ -102,10 +102,13 @@ export default function Compare() {
     setLoading(true);
     try {
       const base = campaignFilter.length > 0 ? { campaign_ids: campaignFilter.join(',') } : {};
+      console.log('[Compare] fetch params:', { ...base, aS, aE, bS, bE });
       const [aRes, bRes] = await Promise.all([
         metricsAPI.getSummary({ ...base, start_date: aS, end_date: aE }),
         metricsAPI.getSummary({ ...base, start_date: bS, end_date: bE }),
       ]);
+      console.log('[Compare] afterData rows:', aRes.data);
+      console.log('[Compare] beforeData rows:', bRes.data);
       setAfterData(aggregateSummary(aRes.data));
       setBeforeData(aggregateSummary(bRes.data));
       setCompared(true);
