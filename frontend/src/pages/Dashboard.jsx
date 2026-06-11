@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format, subDays, eachDayOfInterval, parseISO } from 'date-fns';
 import { metricsAPI, campaignAPI, metaAPI } from '../utils/api';
-import DatePicker from '../components/DatePicker';
+import PeriodPicker from '../components/PeriodPicker';
 import {
   TrendingUp,
   DollarSign,
@@ -417,27 +417,13 @@ const Dashboard = () => {
           <div style={{ width: '1px', backgroundColor: '#f1f5f9', margin: '0 1rem', flexShrink: 0 }} />
 
           {/* 日付範囲 */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', flex: '1', minWidth: '280px' }}>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>開始日</label>
-              <DatePicker
-                value={startDate}
-                onChange={setStartDate}
-                placeholder="開始日"
-                maxDate={endDate || format(new Date(), 'yyyy-MM-dd')}
-              />
-            </div>
-            <div style={{ color: '#d1d5db', paddingBottom: '9px', flexShrink: 0, fontSize: '0.9rem' }}>—</div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>終了日</label>
-              <DatePicker
-                value={endDate}
-                onChange={setEndDate}
-                placeholder="終了日"
-                minDate={startDate || undefined}
-                maxDate={format(new Date(), 'yyyy-MM-dd')}
-              />
-            </div>
+          <div style={{ flex: '1', minWidth: '280px' }}>
+            <label style={labelStyle}>期間</label>
+            <PeriodPicker
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(s, e) => { setStartDate(s); setEndDate(e); }}
+            />
           </div>
 
           {/* 縦区切り */}
