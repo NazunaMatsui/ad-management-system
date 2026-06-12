@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import CampaignDetail from './pages/CampaignDetail';
 import Compare from './pages/Compare';
 import Campaigns from './pages/Campaigns';
+import DataEntry from './pages/DataEntry';
 import './styles/globals.css';
 
 // 認証が必要なルートのラッパー
@@ -62,6 +63,17 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <Campaigns />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/data-entry"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <DataEntry />
             </Layout>
           </ProtectedRoute>
         }

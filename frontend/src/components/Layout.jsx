@@ -121,6 +121,11 @@ const Layout = ({ children }) => {
               grad: ['linear-gradient(135deg,#f59e0b,#ef4444)', 'linear-gradient(135deg,#fcd34d,#fca5a5)'],
               svgPath: <><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>
             },
+            {
+              name: 'CV手動入力', path: '/data-entry',
+              grad: ['linear-gradient(135deg,#10b981,#06b6d4)', 'linear-gradient(135deg,#6ee7b7,#a5f3fc)'],
+              svgPath: <><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>
+            },
           ].map(item => {
             const active = isActive(item.path);
             return (
