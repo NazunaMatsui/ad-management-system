@@ -208,7 +208,10 @@ export default function PeriodPicker({ startDate, endDate, onChange, accentColor
                 <span style={{ fontSize:'0.72rem', color:'#94a3b8' }}>
                   {!startDate ? '開始日をクリック' : !endDate ? '終了日をクリック' : `${startDate} 〜 ${endDate}`}
                 </span>
-                <button onClick={()=>{ onChange(toStr(TY,TM,TD), toStr(TY,TM,TD)); setOpen(false); }} style={{ padding:'0.3rem 0.75rem', borderRadius:'6px', border:`1px solid ${accentColor}44`, backgroundColor:accentBg, color:accentColor, fontSize:'0.78rem', fontWeight:'600', cursor:'pointer' }}>今日</button>
+                <div style={{ display:'flex', gap:'0.4rem' }}>
+                  <button onClick={()=>{ const y=new Date(); y.setDate(y.getDate()-1); const ys=toStr(y.getFullYear(),y.getMonth()+1,y.getDate()); onChange(ys,ys); setOpen(false); }} style={{ padding:'0.3rem 0.75rem', borderRadius:'6px', border:'1px solid #e2e8f0', backgroundColor:'#f8fafc', color:'#64748b', fontSize:'0.78rem', fontWeight:'600', cursor:'pointer' }}>昨日</button>
+                  <button onClick={()=>{ onChange(toStr(TY,TM,TD), toStr(TY,TM,TD)); setOpen(false); }} style={{ padding:'0.3rem 0.75rem', borderRadius:'6px', border:`1px solid ${accentColor}44`, backgroundColor:accentBg, color:accentColor, fontSize:'0.78rem', fontWeight:'600', cursor:'pointer' }}>今日</button>
+                </div>
               </div>
             </>
           )}
