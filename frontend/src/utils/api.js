@@ -74,8 +74,8 @@ export const memoAPI = {
 export const creativeAPI = {
   getAll: (params) => api.get('/creatives', { params }),
   getById: (id) => api.get(`/creatives/${id}`),
-  create: (data) => api.post('/creatives', data),
-  update: (id, data) => api.put(`/creatives/${id}`, data),
+  create: (formData) => api.post('/creatives', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id, formData) => api.put(`/creatives/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   delete: (id) => api.delete(`/creatives/${id}`)
 };
 
