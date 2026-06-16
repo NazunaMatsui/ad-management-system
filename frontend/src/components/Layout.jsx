@@ -123,6 +123,11 @@ const Layout = ({ children }) => {
               grad: ['linear-gradient(135deg,#f59e0b,#ef4444)', 'linear-gradient(135deg,#fcd34d,#fca5a5)'],
               svgPath: <><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>
             },
+            {
+              name: 'クリエイティブ管理', path: '/creatives',
+              grad: ['linear-gradient(135deg,#8b5cf6,#ec4899)', 'linear-gradient(135deg,#c4b5fd,#f9a8d4)'],
+              svgPath: <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>
+            },
           ].map(item => {
             const active = isActive(item.path);
             return (

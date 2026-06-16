@@ -70,6 +70,15 @@ export const memoAPI = {
   getHistory: (id) => api.get(`/memos/${id}/history`)
 };
 
+// クリエイティブAPI
+export const creativeAPI = {
+  getAll: (params) => api.get('/creatives', { params }),
+  getById: (id) => api.get(`/creatives/${id}`),
+  create: (data) => api.post('/creatives', data),
+  update: (id, data) => api.put(`/creatives/${id}`, data),
+  delete: (id) => api.delete(`/creatives/${id}`)
+};
+
 // チャットAPI
 export const chatAPI = {
   send: (messages) => api.post('/chat', { messages })

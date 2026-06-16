@@ -9,6 +9,7 @@ import Compare from './pages/Compare';
 import Campaigns from './pages/Campaigns';
 import DataEntry from './pages/DataEntry';
 import Memos from './pages/Memos';
+import Creatives from './pages/Creatives';
 import './styles/globals.css';
 
 // 認証が必要なルートのラッパー
@@ -97,6 +98,17 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <CampaignDetail />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/creatives"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Creatives />
             </Layout>
           </ProtectedRoute>
         }

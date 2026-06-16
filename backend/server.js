@@ -17,6 +17,7 @@ const metricRoutes = require('./routes/metrics');
 const memoRoutes = require('./routes/memos');
 const metaRoutes = require('./routes/meta');
 const chatRoutes = require('./routes/chat');
+const creativeRoutes = require('./routes/creatives');
 const { startScheduler } = require('./jobs/metaSync');
 
 // API エンドポイント
@@ -26,6 +27,7 @@ app.use('/api/metrics', metricRoutes);
 app.use('/api/memos', memoRoutes);
 app.use('/api/meta', metaRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/creatives', creativeRoutes);
 
 // ヘルスチェック
 app.get('/health', (req, res) => {
