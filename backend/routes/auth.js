@@ -46,7 +46,7 @@ router.post('/login', [
         username: user.username
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     res.json({

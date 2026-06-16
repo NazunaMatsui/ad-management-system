@@ -8,6 +8,7 @@ import CampaignDetail from './pages/CampaignDetail';
 import Compare from './pages/Compare';
 import Campaigns from './pages/Campaigns';
 import DataEntry from './pages/DataEntry';
+import Memos from './pages/Memos';
 import './styles/globals.css';
 
 // 認証が必要なルートのラッパー
@@ -84,16 +85,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Layout>
-              <div style={{ padding: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '1rem' }}>
-                  📝 運用メモ
-                </h1>
-                <div className="card">
-                  <p style={{ color: 'var(--text-secondary)' }}>
-                    運用メモ機能は実装中です。
-                  </p>
-                </div>
-              </div>
+              <Memos />
             </Layout>
           </ProtectedRoute>
         }

@@ -101,23 +101,34 @@ router.post('/', async (req, res) => {
   }
 });
 
-// メモ更新
+// メモ更新（変更前の内容を履歴に保存）
 router.put('/:id', async (req, res) => {
   const { campaign_id, date, memo_content } = req.body;
-  
+
   try {
+    // 変更前の内容を取得して履歴に保存
+    const before = await pool.query('SELECT * FROM operation_memos WHERE id = $1', [req.params.id]);
+    if (before.rows.length > 0) {
+      const old = before.rows[0];
+      await pool.query(
+        `INSERT INTO memo_history (memo_id, campaign_id, date, memo_content, changed_by)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [old.id, old.campaign_id, old.date, old.memo_content, req.user.userId]
+      );
+    }
+
     const result = await pool.query(
-      `UPDATE operation_memos 
+      `UPDATE operation_memos
        SET campaign_id = $1, date = $2, memo_content = $3, updated_at = CURRENT_TIMESTAMP
        WHERE id = $4
        RETURNING *`,
       [campaign_id, date, memo_content, req.params.id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'メモが見つかりません' });
     }
-    
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('メモ更新エラー:', error);
@@ -125,21 +136,42 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// メモ削除
+// メモ削除（削除前の内容を履歴に保存）
 router.delete('/:id', async (req, res) => {
   try {
-    const result = await pool.query(
-      'DELETE FROM operation_memos WHERE id = $1 RETURNING *',
-      [req.params.id]
-    );
-    
-    if (result.rows.length === 0) {
+    const before = await pool.query('SELECT * FROM operation_memos WHERE id = $1', [req.params.id]);
+    if (before.rows.length === 0) {
       return res.status(404).json({ error: 'メモが見つかりません' });
     }
-    
+    const old = before.rows[0];
+    await pool.query(
+      `INSERT INTO memo_history (memo_id, campaign_id, date, memo_content, changed_by)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [old.id, old.campaign_id, old.date, `[削除] ${old.memo_content}`, req.user.userId]
+    );
+
+    await pool.query('DELETE FROM operation_memos WHERE id = $1', [req.params.id]);
     res.json({ message: 'メモを削除しました' });
   } catch (error) {
     console.error('メモ削除エラー:', error);
+    res.status(500).json({ error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// メモ履歴取得
+router.get('/:id/history', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT mh.*, u.username as changed_by_name
+       FROM memo_history mh
+       LEFT JOIN users u ON mh.changed_by = u.user_id
+       WHERE mh.memo_id = $1
+       ORDER BY mh.changed_at DESC`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('履歴取得エラー:', error);
     res.status(500).json({ error: 'サーバーエラーが発生しました' });
   }
 });

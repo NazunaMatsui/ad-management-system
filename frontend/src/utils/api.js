@@ -66,7 +66,13 @@ export const memoAPI = {
   getById: (id) => api.get(`/memos/${id}`),
   create: (data) => api.post('/memos', data),
   update: (id, data) => api.put(`/memos/${id}`, data),
-  delete: (id) => api.delete(`/memos/${id}`)
+  delete: (id) => api.delete(`/memos/${id}`),
+  getHistory: (id) => api.get(`/memos/${id}/history`)
+};
+
+// チャットAPI
+export const chatAPI = {
+  send: (messages) => api.post('/chat', { messages })
 };
 
 // Meta API

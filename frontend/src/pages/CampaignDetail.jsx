@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { campaignAPI, metricsAPI, memoAPI } from '../utils/api';
-import { Calendar, TrendingUp, Pencil, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar, TrendingUp, Pencil, Check, X, ChevronDown, ChevronRight, History, RotateCcw } from 'lucide-react';
 
 // ---- フォーマッター ----
 const fmt    = (v) => new Intl.NumberFormat('ja-JP').format(Math.round(Number(v) || 0));
@@ -74,11 +74,14 @@ const COLORS = [
 // ---- インラインメモセル ----
 const MemoCell = ({ campaignId, date, initialMemo, onSaved }) => {
   const parsed = parseMemo(initialMemo?.memo_content);
-  const [editing, setEditing] = useState(false);
-  const [text,    setText]    = useState(parsed.text);
-  const [bold,    setBold]    = useState(!!parsed.bold);
-  const [color,   setColor]   = useState(parsed.color || '#1e293b');
-  const [saving,  setSaving]  = useState(false);
+  const [editing,     setEditing]     = useState(false);
+  const [text,        setText]        = useState(parsed.text);
+  const [bold,        setBold]        = useState(!!parsed.bold);
+  const [color,       setColor]       = useState(parsed.color || '#1e293b');
+  const [saving,      setSaving]      = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history,     setHistory]     = useState([]);
+  const [loadingHist, setLoadingHist] = useState(false);
   const ref = useRef(null);
 
   // initialMemoが変わったら同期
@@ -95,6 +98,11 @@ const MemoCell = ({ campaignId, date, initialMemo, onSaved }) => {
       const content = serializeMemo(text, bold, color);
       if (initialMemo) {
         if (text.trim() === '') {
+          // 削除確認ダイアログ
+          if (!window.confirm('このメモを削除しますか？\n削除後も履歴から復元できます。')) {
+            setSaving(false);
+            return;
+          }
           await memoAPI.delete(initialMemo.id);
           onSaved(date, null);
         } else {
@@ -114,6 +122,29 @@ const MemoCell = ({ campaignId, date, initialMemo, onSaved }) => {
     const p = parseMemo(initialMemo?.memo_content);
     setText(p.text); setBold(!!p.bold); setColor(p.color || '#1e293b');
     setEditing(false);
+  };
+
+  const openHistory = async (e) => {
+    e.stopPropagation();
+    if (!initialMemo) return;
+    setShowHistory(true);
+    setLoadingHist(true);
+    try {
+      const res = await memoAPI.getHistory(initialMemo.id);
+      setHistory(res.data);
+    } catch {}
+    finally { setLoadingHist(false); }
+  };
+
+  const restoreHistory = (item) => {
+    try {
+      const p = parseMemo(item.memo_content?.replace(/^\[削除\] /, '') || '');
+      setText(p.text); setBold(!!p.bold); setColor(p.color || '#1e293b');
+    } catch {
+      setText(item.memo_content?.replace(/^\[削除\] /, '') || '');
+    }
+    setShowHistory(false);
+    setEditing(true);
   };
 
   if (editing) {
@@ -202,30 +233,91 @@ const MemoCell = ({ campaignId, date, initialMemo, onSaved }) => {
 
   // 表示モード
   return (
-    <div onClick={() => setEditing(true)}
-      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
-      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-      style={{
-        display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
-        cursor: 'pointer', minWidth: '180px', maxWidth: '300px',
-        padding: '0.3rem 0.4rem', borderRadius: '6px', transition: 'background 0.1s'
-      }}
-    >
-      {text ? (
-        <>
-          <span style={{
-            fontSize: '0.78rem', lineHeight: '1.45', flex: 1,
-            whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-            color: color, fontWeight: bold ? '700' : '400'
-          }}>
-            {text}
-          </span>
-          <Pencil size={11} style={{ color: '#94a3b8', flexShrink: 0, marginTop: '2px' }} />
-        </>
-      ) : (
-        <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <Pencil size={11} /> メモを追加
-        </span>
+    <div style={{ position: 'relative' }}>
+      <div
+        style={{
+          display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
+          minWidth: '180px', maxWidth: '300px',
+          padding: '0.3rem 0.4rem', borderRadius: '6px',
+        }}
+      >
+        <div onClick={() => setEditing(true)}
+          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+          style={{ flex: 1, cursor: 'pointer', borderRadius: '5px', padding: '0.1rem 0.2rem', transition: 'background 0.1s' }}
+        >
+          {text ? (
+            <span style={{
+              fontSize: '0.78rem', lineHeight: '1.45',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+              color: color, fontWeight: bold ? '700' : '400'
+            }}>
+              {text}
+            </span>
+          ) : (
+            <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <Pencil size={11} /> メモを追加
+            </span>
+          )}
+        </div>
+        {initialMemo && (
+          <button onClick={openHistory} title="変更履歴" style={{
+            width: '18px', height: '18px', borderRadius: '4px', border: 'none',
+            background: 'transparent', cursor: 'pointer', color: '#94a3b8', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+            marginTop: '2px'
+          }}
+            onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
+            onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+          >
+            <History size={11} />
+          </button>
+        )}
+      </div>
+
+      {/* 履歴パネル */}
+      {showHistory && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, zIndex: 300,
+          backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '0.75rem',
+          minWidth: '260px', maxWidth: '320px', maxHeight: '260px', overflowY: 'auto',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569' }}>変更履歴</span>
+            <button onClick={() => setShowHistory(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}><X size={13} /></button>
+          </div>
+          {loadingHist ? (
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', padding: '0.5rem 0' }}>読み込み中...</div>
+          ) : history.length === 0 ? (
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', padding: '0.5rem 0' }}>履歴がありません</div>
+          ) : history.map(item => {
+            const rawText = (() => { try { return JSON.parse(item.memo_content?.replace(/^\[削除\] /, '') || '{}').text || item.memo_content; } catch { return item.memo_content; } })();
+            const isDeleted = item.memo_content?.startsWith('[削除]');
+            return (
+              <div key={item.id} style={{ borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                  <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                    {new Date(item.changed_at).toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                    　{item.changed_by_name}
+                  </span>
+                  {!isDeleted && (
+                    <button onClick={() => restoreHistory(item)} title="この内容に戻す" style={{
+                      display: 'flex', alignItems: 'center', gap: '0.2rem',
+                      fontSize: '0.65rem', color: '#3b82f6', background: 'none',
+                      border: '1px solid #bfdbfe', borderRadius: '4px', padding: '0.1rem 0.35rem', cursor: 'pointer'
+                    }}>
+                      <RotateCcw size={9} /> 復元
+                    </button>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.75rem', color: isDeleted ? '#ef4444' : '#374151', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: '1.4' }}>
+                  {isDeleted ? '🗑 削除された内容: ' : ''}{rawText}
+                </p>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

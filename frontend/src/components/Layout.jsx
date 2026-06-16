@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { campaignAPI } from '../utils/api';
 import { LogOut, ChevronDown, ChevronRight } from 'lucide-react';
+import AiChat from './AiChat';
 
 // CSS角丸アイコンコンポーネント
 const NavIcon = ({ gradient, children }) => (
@@ -48,6 +49,7 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const [campaigns, setCampaigns] = useState([]);
   const [campaignsOpen, setCampaignsOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     campaignAPI.getAll().then(res => setCampaigns(res.data)).catch(() => {});
@@ -120,11 +122,6 @@ const Layout = ({ children }) => {
               name: 'キャンペーン一覧', path: '/campaigns',
               grad: ['linear-gradient(135deg,#f59e0b,#ef4444)', 'linear-gradient(135deg,#fcd34d,#fca5a5)'],
               svgPath: <><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>
-            },
-            {
-              name: 'CV手動入力', path: '/data-entry',
-              grad: ['linear-gradient(135deg,#10b981,#06b6d4)', 'linear-gradient(135deg,#6ee7b7,#a5f3fc)'],
-              svgPath: <><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>
             },
           ].map(item => {
             const active = isActive(item.path);
@@ -251,6 +248,30 @@ const Layout = ({ children }) => {
       <main style={{ marginLeft: '260px', flex: 1, minHeight: '100vh', backgroundColor: 'var(--bg-primary)', overflowX: 'hidden' }}>
         {children}
       </main>
+
+      {/* AI チャットボタン */}
+      {!chatOpen && (
+        <button
+          onClick={() => setChatOpen(true)}
+          style={{
+            position: 'fixed', bottom: '24px', right: '24px', zIndex: 999,
+            width: '52px', height: '52px', borderRadius: '50%',
+            background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
+            border: 'none', cursor: 'pointer',
+            boxShadow: '0 4px 16px rgba(99,102,241,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'transform 0.15s'
+          }}
+          title="AIアシスタントに質問する"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            <line x1="9" y1="10" x2="9" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="15" y1="10" x2="15" y2="10"/>
+          </svg>
+        </button>
+      )}
+
+      {chatOpen && <AiChat onClose={() => setChatOpen(false)} />}
     </div>
   );
 };
