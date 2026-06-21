@@ -220,9 +220,9 @@ export default function Campaigns() {
                     {[
                       { label: '消化金額', value: s ? fmtYen(s.total_spend) : '—' },
                       { label: 'クリック', value: s ? fmt(s.total_clicks) : '—' },
-                      { label: 'CV（予約）', value: s ? fmt(s.total_conversions_booking ?? 0) : '—' },
-                      { label: 'CPA', value: s && s.total_conversions_booking > 0
-                          ? fmtYen(s.total_spend / s.total_conversions_booking)
+                      { label: 'CV（Meta）', value: s ? fmt(s.total_conversions_meta ?? 0) : '—' },
+                      { label: 'CPA', value: s && s.total_conversions_meta > 0
+                          ? fmtYen(s.total_spend / s.total_conversions_meta)
                           : '—' },
                     ].map(({ label, value }) => (
                       <div key={label} style={{ textAlign: 'right', minWidth: '60px' }}>

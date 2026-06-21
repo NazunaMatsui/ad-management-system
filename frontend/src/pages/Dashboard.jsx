@@ -88,7 +88,7 @@ const Dashboard = () => {
 
       // KPI計算
       const totalCV = (totalSummary.total_conversions_meta || 0) + (totalSummary.total_conversions_booking || 0);
-      totalSummary.avg_cpa = (totalSummary.total_conversions_booking || 0) > 0 ? totalSummary.total_spend / totalSummary.total_conversions_booking : 0;
+      totalSummary.avg_cpa = (totalSummary.total_conversions_meta || 0) > 0 ? totalSummary.total_spend / totalSummary.total_conversions_meta : 0;
       totalSummary.avg_cpc = (totalSummary.total_clicks || 0) > 0 ? totalSummary.total_spend / totalSummary.total_clicks : 0;
       totalSummary.avg_ctr = (totalSummary.total_impressions || 0) > 0 ? (totalSummary.total_clicks / totalSummary.total_impressions * 100) : 0;
       totalSummary.avg_cvr = (totalSummary.total_clicks || 0) > 0 ? (totalCV / totalSummary.total_clicks * 100) : 0;
