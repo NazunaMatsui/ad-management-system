@@ -177,7 +177,7 @@ export default function AdminUsers() {
                     {u.role === 'owner' ? 'オーナー' : '管理者'}
                   </span>
                 )}
-                {isPrimaryOwner && u.user_id !== user?.userId && u.role !== 'owner' && (
+                {isPrimaryOwner && u.user_id !== user?.userId && (
                   <button
                     onClick={() => handleDelete(u.user_id, u.username)}
                     style={{
