@@ -193,7 +193,7 @@ const MemoCell = ({ campaignId, date, initialMemo, onSaved }) => {
         {/* テキストエリア */}
         <textarea
           ref={ref} value={text} onChange={e => setText(e.target.value)} rows={2}
-          onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) save(); if (e.key === 'Escape') cancel(); }}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } if (e.key === 'Escape') cancel(); }}
           style={{
             width: '100%', padding: '0.375rem 0.5rem',
             border: '1.5px solid #3b82f6', borderTop: 'none',
@@ -224,7 +224,7 @@ const MemoCell = ({ campaignId, date, initialMemo, onSaved }) => {
             <X size={11} /> キャンセル
           </button>
           <span style={{ fontSize: '0.68rem', color: '#94a3b8', alignSelf: 'center', marginLeft: '0.25rem' }}>
-            ⌘+Enter で保存
+            Enter で保存 / Shift+Enter で改行
           </span>
         </div>
       </div>
