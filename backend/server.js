@@ -51,6 +51,7 @@ app.use((err, req, res, next) => {
 // DBマイグレーション
 const pool = require('./config/database');
 pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT`).catch(() => {});
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS temp_password TEXT`).catch(() => {});
 
 // サーバー起動
 app.listen(PORT, () => {

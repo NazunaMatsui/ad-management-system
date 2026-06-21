@@ -85,8 +85,8 @@ router.post('/register', [
 
     // ユーザー作成
     const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING user_id, username, email, role',
-      [username, email, passwordHash, role]
+      'INSERT INTO users (username, email, password_hash, role, temp_password) VALUES ($1, $2, $3, $4, $5) RETURNING user_id, username, email, role',
+      [username, email, passwordHash, role, password]
     );
 
     res.status(201).json({
@@ -162,8 +162,11 @@ const adminOnly = (req, res, next) => {
 
 router.get('/users', adminOnly, async (req, res) => {
   try {
+    const isPrimary = req.userEmail === PRIMARY_OWNER_EMAIL;
     const result = await pool.query(
-      'SELECT user_id, username, email, role, created_at FROM users ORDER BY created_at DESC'
+      isPrimary
+        ? 'SELECT user_id, username, email, role, created_at, temp_password FROM users ORDER BY created_at DESC'
+        : 'SELECT user_id, username, email, role, created_at FROM users ORDER BY created_at DESC'
     );
     res.json(result.rows);
   } catch (err) {
@@ -273,7 +276,7 @@ router.post('/change-password', async (req, res) => {
     if (!valid) return res.status(400).json({ error: '現在のパスワードが間違っています' });
 
     const hash = await bcrypt.hash(new_password, 10);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [hash, userId]);
+    await pool.query('UPDATE users SET password_hash = $1, temp_password = NULL WHERE user_id = $2', [hash, userId]);
     res.json({ message: 'パスワードを変更しました' });
   } catch (error) {
     console.error(error);
