@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { creativeImageAPI, creativeTextAPI } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
@@ -121,9 +122,154 @@ function MediaSlot({ index, file, existingUrl, existingType, onFile, onClear, ed
   );
 }
 
+// ─── プレビューモーダル（画像/動画）─────────────────────────────────────────
+function ImagePreviewModal({ item, onClose }) {
+  const urlKeys = ['image_url', 'image_url_2', 'image_url_3'];
+  const urls = urlKeys.map(k => item[k]).filter(Boolean);
+  const labels = [item.size_label_1, item.size_label_2, item.size_label_3];
+  const [active, setActive] = useState(0);
+  const src = `${API_BASE}${urls[active] || urls[0]}`;
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '640px', maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* ヘッダー */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontWeight: '700', fontSize: '0.95rem', color: '#1e293b' }}>{item.name}</div>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+              {item.store && <span style={{ fontSize: '0.65rem', padding: '1px 7px', background: '#fef3c7', color: '#d97706', borderRadius: '99px' }}>{item.store}</span>}
+              {item.tags && item.tags.split(',').map(t => t.trim()).filter(Boolean).map(t => (
+                <span key={t} style={{ fontSize: '0.65rem', padding: '1px 6px', background: '#eff6ff', color: '#3b82f6', borderRadius: '99px' }}>{t}</span>
+              ))}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', cursor: 'pointer', padding: '6px 12px', fontSize: '0.85rem', color: '#64748b' }}>✕ 閉じる</button>
+        </div>
+
+        {/* メディア */}
+        <div style={{ flex: 1, overflow: 'auto', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+          {item.media_type === 'video'
+            ? <video src={src} controls style={{ maxWidth: '100%', maxHeight: '60vh' }} />
+            : <img src={src} alt="" style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain' }} />
+          }
+        </div>
+
+        {/* サイズタブ */}
+        {urls.length > 1 && (
+          <div style={{ display: 'flex', gap: '6px', padding: '10px 16px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', flexShrink: 0 }}>
+            {urls.map((_, i) => (
+              <button key={i} onClick={() => setActive(i)} style={{
+                flex: 1, padding: '6px 8px', fontSize: '0.72rem', fontWeight: '600',
+                border: '1.5px solid', borderRadius: '7px', cursor: 'pointer', transition: 'all 0.15s',
+                borderColor: active === i ? '#6366f1' : '#e2e8f0',
+                background: active === i ? '#eef2ff' : '#fff',
+                color: active === i ? '#6366f1' : '#94a3b8',
+              }}>
+                {labels[i] || `サイズ${i + 1}`}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* メモ */}
+        {item.memo && (
+          <div style={{ padding: '10px 20px', borderTop: '1px solid #f1f5f9', fontSize: '0.78rem', color: '#64748b', flexShrink: 0 }}>
+            {item.memo}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── プレビューモーダル（広告文）────────────────────────────────────────────
+function TextPreviewModal({ item, onClose }) {
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const headlines = [item.headline, item.headline_2, item.headline_3, item.headline_4, item.headline_5].filter(Boolean);
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+      <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '480px', maxHeight: '92vh', overflow: 'auto' }}>
+        {/* ヘッダー */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontWeight: '700', fontSize: '0.95rem', color: '#1e293b' }}>{item.name}</div>
+          <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', cursor: 'pointer', padding: '6px 12px', fontSize: '0.85rem', color: '#64748b' }}>✕ 閉じる</button>
+        </div>
+
+        {/* Facebook広告風プレビュー */}
+        <div style={{ padding: '20px' }}>
+          <div style={{ border: '1px solid #dde3eb', borderRadius: '10px', overflow: 'hidden', fontFamily: 'Helvetica, Arial, sans-serif', maxWidth: '400px', margin: '0 auto', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            {/* アカウント行 */}
+            <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '700', fontSize: '1rem', flexShrink: 0 }}>
+                {item.store?.[0] || 'A'}
+              </div>
+              <div>
+                <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1c1e21' }}>{item.store || '店舗名'}</div>
+                <div style={{ fontSize: '0.68rem', color: '#65676b' }}>スポンサー済み · <span style={{ fontSize: '0.68rem' }}>🌐</span></div>
+              </div>
+            </div>
+
+            {/* 本文 */}
+            {item.body_text && (
+              <div style={{ padding: '0 14px 12px', fontSize: '0.875rem', color: '#1c1e21', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                {item.body_text}
+              </div>
+            )}
+
+            {/* 画像プレースホルダー */}
+            <div style={{ background: '#e4e6eb', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#65676b', fontSize: '0.82rem' }}>
+              画像/動画エリア
+            </div>
+
+            {/* 見出し */}
+            <div style={{ padding: '10px 14px', background: '#f0f2f5', borderTop: '1px solid #dde3eb' }}>
+              {headlines.slice(0, 3).map((h, i) => (
+                <div key={i} style={{ fontSize: i === 0 ? '0.9rem' : '0.78rem', fontWeight: i === 0 ? '700' : '400', color: i === 0 ? '#1c1e21' : '#65676b', marginBottom: i === 0 ? '2px' : '0' }}>{h}</div>
+              ))}
+            </div>
+
+            {/* CTAボタン */}
+            <div style={{ padding: '10px 14px', background: '#f0f2f5', display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ padding: '7px 16px', background: '#e4e6eb', borderRadius: '6px', fontSize: '0.82rem', fontWeight: '600', color: '#1c1e21' }}>詳しくはこちら</div>
+            </div>
+          </div>
+
+          {/* 全見出しリスト */}
+          {headlines.length > 0 && (
+            <div style={{ marginTop: '16px', background: '#f8fafc', borderRadius: '10px', padding: '12px 14px' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', marginBottom: '8px' }}>登録済み見出し（全{headlines.length}件）</div>
+              {headlines.map((h, i) => (
+                <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '0.62rem', fontWeight: '700', color: '#6366f1', background: '#eef2ff', padding: '1px 6px', borderRadius: '99px', flexShrink: 0 }}>見出し{i + 1}</span>
+                  <div style={{ fontSize: '0.82rem', color: '#1e293b' }}>{h}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── 画像/動画タブ ────────────────────────────────────────────────────────────
 
-function ImageTab() {
+function ImageTab({ isOwner }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -137,6 +283,7 @@ function ImageTab() {
   const [files, setFiles] = useState([null, null, null]);
   const [clears, setClears] = useState([false, false, false]);
   const [saving, setSaving] = useState(false);
+  const [previewItem, setPreviewItem] = useState(null);
 
   const load = async (q, store) => {
     setLoading(true);
@@ -219,7 +366,7 @@ function ImageTab() {
             style={{ flex: 1, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none' }} />
           <button type="submit" style={{ padding: '8px 16px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem' }}>検索</button>
         </form>
-        <button onClick={openNew} style={{ padding: '8px 18px', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', whiteSpace: 'nowrap' }}>＋ 追加</button>
+        {isOwner && <button onClick={openNew} style={{ padding: '8px 18px', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', whiteSpace: 'nowrap' }}>＋ 追加</button>}
       </div>
 
       <div style={{ marginBottom: '20px' }}>
@@ -255,8 +402,9 @@ function ImageTab() {
                   )}
                   {item.memo && <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: '8px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.memo}</div>}
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    <button onClick={() => openEdit(item)} style={{ flex: 1, padding: '5px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.72rem', color: '#475569' }}>編集</button>
-                    <button onClick={() => del(item.id)} style={{ flex: 1, padding: '5px', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.72rem', color: '#dc2626' }}>削除</button>
+                    <button onClick={() => setPreviewItem(item)} style={{ flex: isOwner ? 1 : undefined, padding: '5px 10px', background: '#f0fdf4', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.72rem', color: '#16a34a', fontWeight: '600' }}>プレビュー</button>
+                    {isOwner && <button onClick={() => openEdit(item)} style={{ flex: 1, padding: '5px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.72rem', color: '#475569' }}>編集</button>}
+                    {isOwner && <button onClick={() => del(item.id)} style={{ flex: 1, padding: '5px', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.72rem', color: '#dc2626' }}>削除</button>}
                   </div>
                 </div>
               </div>
@@ -264,6 +412,8 @@ function ImageTab() {
           })}
         </div>
       )}
+
+      {previewItem && <ImagePreviewModal item={previewItem} onClose={() => setPreviewItem(null)} />}
 
       {showForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -375,7 +525,7 @@ function MediaSlotViewer({ urls, labels, type }) {
 
 // ─── 広告文タブ ───────────────────────────────────────────────────────────────
 
-function TextTab() {
+function TextTab({ isOwner }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -438,7 +588,7 @@ function TextTab() {
             style={{ flex: 1, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none' }} />
           <button type="submit" style={{ padding: '8px 16px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem' }}>検索</button>
         </form>
-        <button onClick={openNew} style={{ padding: '8px 18px', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', whiteSpace: 'nowrap' }}>＋ 追加</button>
+        {isOwner && <button onClick={openNew} style={{ padding: '8px 18px', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', whiteSpace: 'nowrap' }}>＋ 追加</button>}
       </div>
 
       <div style={{ marginBottom: '20px' }}>
@@ -474,8 +624,8 @@ function TextTab() {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center' }}>
-                    <button onClick={e => { e.stopPropagation(); openEdit(item); }} style={{ padding: '5px 12px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', color: '#475569' }}>編集</button>
-                    <button onClick={e => { e.stopPropagation(); del(item.id); }} style={{ padding: '5px 12px', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', color: '#dc2626' }}>削除</button>
+                    {isOwner && <button onClick={e => { e.stopPropagation(); openEdit(item); }} style={{ padding: '5px 12px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', color: '#475569' }}>編集</button>}
+                    {isOwner && <button onClick={e => { e.stopPropagation(); del(item.id); }} style={{ padding: '5px 12px', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', color: '#dc2626' }}>削除</button>}
                     <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{expanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
@@ -574,6 +724,8 @@ function TextTab() {
 
 export default function Creatives() {
   const [tab, setTab] = useState('images');
+  const { user } = useAuth();
+  const isOwner = user?.role === 'owner';
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
@@ -598,7 +750,7 @@ export default function Creatives() {
         ))}
       </div>
 
-      {tab === 'images' ? <ImageTab /> : <TextTab />}
+      {tab === 'images' ? <ImageTab isOwner={isOwner} /> : <TextTab isOwner={isOwner} />}
     </div>
   );
 }

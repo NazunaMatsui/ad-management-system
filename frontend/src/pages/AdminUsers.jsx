@@ -57,6 +57,15 @@ export default function AdminUsers() {
     }
   };
 
+  const handleRoleChange = async (id, newRole) => {
+    try {
+      await api.patch(`/auth/users/${id}/role`, { role: newRole });
+      await load();
+    } catch (err) {
+      setMsg({ type: 'error', text: err.response?.data?.error || '権限変更に失敗しました' });
+    }
+  };
+
   const handleDelete = async (id, name) => {
     if (!window.confirm(`「${name}」を削除しますか？`)) return;
     try {
@@ -134,15 +143,31 @@ export default function AdminUsers() {
                   <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b' }}>{u.username}</div>
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.1rem' }}>{u.email}</div>
                 </div>
-                <span style={{
-                  fontSize: '0.7rem', fontWeight: '600', padding: '0.15rem 0.55rem',
-                  borderRadius: '99px', flexShrink: 0,
-                  backgroundColor: u.role === 'owner' ? '#eff6ff' : '#f0fdf4',
-                  color: u.role === 'owner' ? '#1d4ed8' : '#166534',
-                }}>
-                  {u.role === 'owner' ? 'オーナー' : '管理者'}
-                </span>
-                {u.user_id !== user?.userId && (
+                {u.user_id === user?.userId ? (
+                  <span style={{
+                    fontSize: '0.7rem', fontWeight: '600', padding: '0.15rem 0.55rem',
+                    borderRadius: '99px', flexShrink: 0,
+                    backgroundColor: '#eff6ff', color: '#1d4ed8',
+                  }}>
+                    オーナー
+                  </span>
+                ) : (
+                  <select
+                    value={u.role}
+                    onChange={e => handleRoleChange(u.user_id, e.target.value)}
+                    style={{
+                      fontSize: '0.72rem', fontWeight: '600', padding: '0.2rem 0.5rem',
+                      borderRadius: '6px', border: '1px solid #e2e8f0',
+                      backgroundColor: u.role === 'owner' ? '#eff6ff' : '#f0fdf4',
+                      color: u.role === 'owner' ? '#1d4ed8' : '#166534',
+                      cursor: 'pointer', flexShrink: 0,
+                    }}
+                  >
+                    <option value="admin">管理者</option>
+                    <option value="owner">オーナー</option>
+                  </select>
+                )}
+                {u.user_id !== user?.userId && u.role !== 'owner' && (
                   <button
                     onClick={() => handleDelete(u.user_id, u.username)}
                     style={{

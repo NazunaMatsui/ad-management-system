@@ -146,6 +146,22 @@ router.get('/users', adminOnly, async (req, res) => {
   }
 });
 
+router.patch('/users/:id/role', adminOnly, async (req, res) => {
+  if (String(req.params.id) === String(req.userId)) {
+    return res.status(400).json({ error: '自分自身の権限は変更できません' });
+  }
+  const { role } = req.body;
+  if (!['owner', 'admin'].includes(role)) {
+    return res.status(400).json({ error: '権限が不正です' });
+  }
+  try {
+    await pool.query('UPDATE users SET role = $1 WHERE user_id = $2', [role, req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '更新に失敗しました' });
+  }
+});
+
 router.delete('/users/:id', adminOnly, async (req, res) => {
   if (String(req.params.id) === String(req.userId)) {
     return res.status(400).json({ error: '自分自身は削除できません' });

@@ -97,10 +97,19 @@ const Layout = ({ children }) => {
               <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
             </svg>
           </div>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#1e293b', letterSpacing: '-0.01em' }}>Ad Manager</div>
             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>広告費管理システム</div>
           </div>
+          <span style={{
+            fontSize: '0.62rem', fontWeight: '700', padding: '0.15rem 0.5rem',
+            borderRadius: '99px', flexShrink: 0,
+            backgroundColor: user?.role === 'owner' ? '#eff6ff' : '#f0fdf4',
+            color: user?.role === 'owner' ? '#1d4ed8' : '#166534',
+            border: `1px solid ${user?.role === 'owner' ? '#bfdbfe' : '#bbf7d0'}`,
+          }}>
+            {user?.role === 'owner' ? 'オーナー' : '管理者'}
+          </span>
         </div>
 
         {/* ナビ */}
