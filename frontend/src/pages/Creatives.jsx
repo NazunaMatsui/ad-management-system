@@ -62,7 +62,7 @@ function MediaPreview({ url, type, label, style }) {
   );
 }
 
-function MediaSlot({ index, label, file, existingUrl, existingType, onFile, onClear, editing }) {
+function MediaSlot({ index, file, existingUrl, existingType, onFile, onClear, editing }) {
   const ref = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -88,43 +88,35 @@ function MediaSlot({ index, label, file, existingUrl, existingType, onFile, onCl
 
   const displayUrl = preview || existingUrl;
   const displayType = preview ? previewType : existingType;
-  const required = index === 0;
 
   return (
-    <div style={{ marginBottom: '12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <label style={{ ...labelStyle, marginBottom: 0 }}>
-          {label}{required ? (editing ? '（変更する場合のみ）' : ' *') : '（任意）'}
-        </label>
-        {displayUrl && (
-          <button type="button" onClick={() => { onFile(null); onClear(); }}
-            style={{ fontSize: '0.7rem', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}>
-            ✕ クリア
-          </button>
-        )}
-      </div>
-      <div
-        onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}
-        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onClick={() => ref.current?.click()}
-        style={{
-          border: `2px dashed ${dragOver ? '#3b82f6' : '#cbd5e1'}`,
-          borderRadius: '10px', padding: displayUrl ? '8px' : '16px',
-          textAlign: 'center', cursor: 'pointer',
-          background: dragOver ? '#eff6ff' : '#f8fafc', transition: 'all 0.2s',
-        }}
-      >
-        {displayUrl
-          ? <MediaPreview url={displayUrl} type={displayType} />
-          : <div style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>🖼️</div>
-              画像/動画をドロップまたはクリック
-            </div>
-        }
-        <input ref={ref} type="file" accept="image/*,video/*" style={{ display: 'none' }}
-          onChange={e => handleFile(e.target.files[0])} />
-      </div>
+    <div
+      onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}
+      onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onClick={() => ref.current?.click()}
+      style={{
+        border: `2px dashed ${dragOver ? '#3b82f6' : displayUrl ? '#a5b4fc' : '#cbd5e1'}`,
+        borderRadius: '8px', padding: displayUrl ? '6px' : '12px 8px',
+        textAlign: 'center', cursor: 'pointer', flex: 1,
+        background: dragOver ? '#eff6ff' : displayUrl ? '#f5f3ff' : '#fafafa',
+        transition: 'all 0.2s', position: 'relative', minWidth: 0,
+      }}
+    >
+      {displayUrl
+        ? <>
+            <MediaPreview url={displayUrl} type={displayType} />
+            <button type="button" onClick={e => { e.stopPropagation(); onFile(null); onClear(); }}
+              style={{ position: 'absolute', top: '4px', right: '4px', fontSize: '0.65rem', color: '#fff', background: 'rgba(220,38,38,0.8)', border: 'none', borderRadius: '99px', cursor: 'pointer', padding: '1px 5px', lineHeight: 1.4 }}>
+              ✕
+            </button>
+          </>
+        : <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>
+            クリックまたは<br />ドロップ
+          </div>
+      }
+      <input ref={ref} type="file" accept="image/*,video/*" style={{ display: 'none' }}
+        onChange={e => handleFile(e.target.files[0])} />
     </div>
   );
 }
@@ -293,36 +285,37 @@ function ImageTab() {
 
             <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
               <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#374151', marginBottom: '12px' }}>
-                📐 サイズ別素材（3パターン1セット）
+                サイズ別素材（3パターン1セット）
               </div>
-              {[0, 1, 2].map(i => {
-                const labelKey = sizeLabels[i];
-                return (
-                  <div key={i} style={{ marginBottom: i < 2 ? '16px' : 0 }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#6366f1', background: '#eef2ff', padding: '2px 8px', borderRadius: '99px' }}>
-                        サイズ{i + 1}
-                      </span>
-                      <input
-                        value={form[labelKey]}
-                        onChange={e => setForm(f => ({ ...f, [labelKey]: e.target.value }))}
-                        style={{ ...inputStyle, padding: '5px 10px', fontSize: '0.78rem' }}
-                        placeholder={`サイズ名（例：スクエア(1:1)）`}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {[0, 1, 2].map(i => {
+                  const labelKey = sizeLabels[i];
+                  return (
+                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span style={{ fontSize: '0.68rem', fontWeight: '700', color: '#6366f1', background: '#eef2ff', padding: '2px 7px', borderRadius: '99px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          {i === 0 ? '必須' : '任意'}
+                        </span>
+                        <input
+                          value={form[labelKey]}
+                          onChange={e => setForm(f => ({ ...f, [labelKey]: e.target.value }))}
+                          style={{ ...inputStyle, padding: '4px 8px', fontSize: '0.72rem' }}
+                          placeholder={['スクエア(1:1)', 'ストーリー(9:16)', '横型(16:9)'][i]}
+                        />
+                      </div>
+                      <MediaSlot
+                        index={i}
+                        file={files[i]}
+                        existingUrl={editing ? editing[urlKeys[i]] : null}
+                        existingType={editing?.media_type}
+                        onFile={f => setFiles(prev => { const n = [...prev]; n[i] = f; return n; })}
+                        onClear={() => { setFiles(prev => { const n = [...prev]; n[i] = null; return n; }); setClears(prev => { const n = [...prev]; if (i > 0) n[i] = true; return n; }); }}
+                        editing={!!editing}
                       />
                     </div>
-                    <MediaSlot
-                      index={i}
-                      label=""
-                      file={files[i]}
-                      existingUrl={editing ? editing[urlKeys[i]] : null}
-                      existingType={editing?.media_type}
-                      onFile={f => setFiles(prev => { const n = [...prev]; n[i] = f; return n; })}
-                      onClear={() => { setFiles(prev => { const n = [...prev]; n[i] = null; return n; }); setClears(prev => { const n = [...prev]; if (i > 0) n[i] = true; return n; }); }}
-                      editing={!!editing}
-                    />
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
 
             <div style={{ marginBottom: '14px' }}>
@@ -591,8 +584,8 @@ export default function Creatives() {
 
       <div style={{ display: 'flex', marginBottom: '24px', borderBottom: '2px solid #e2e8f0' }}>
         {[
-          { key: 'images', label: '🖼️  画像/動画素材' },
-          { key: 'texts',  label: '📝  広告文' },
+          { key: 'images', label: '画像/動画素材' },
+          { key: 'texts',  label: '広告文' },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             padding: '10px 24px', border: 'none', cursor: 'pointer',
