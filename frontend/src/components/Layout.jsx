@@ -183,13 +183,11 @@ const Layout = ({ children }) => {
                   </div>
                 ) : campaigns.map((c, i) => {
                   const active = isCampaignActive(c.campaign_id);
-                  const dotColors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
-                  const color = dotColors[i % dotColors.length];
                   const statusConfig = {
-                    active:  { label: '運用中', bg: '#dcfce7', color: '#16a34a' },
-                    paused:  { label: '停止中', bg: '#fee2e2', color: '#dc2626' },
-                    testing: { label: 'テスト', bg: '#fef9c3', color: '#ca8a04' },
-                    ended:   { label: '終了',   bg: '#f1f5f9', color: '#64748b' },
+                    active:  { label: '運用中', bg: '#dcfce7', color: '#16a34a', dot: '#22c55e' },
+                    paused:  { label: '停止中', bg: '#fee2e2', color: '#dc2626', dot: '#ef4444' },
+                    testing: { label: 'テスト', bg: '#fef9c3', color: '#ca8a04', dot: '#f59e0b' },
+                    ended:   { label: '終了',   bg: '#f1f5f9', color: '#64748b', dot: '#94a3b8' },
                   };
                   const st = statusConfig[c.status] || statusConfig.active;
                   return (
@@ -208,7 +206,7 @@ const Layout = ({ children }) => {
                     >
                       <span style={{
                         width: '7px', height: '7px', borderRadius: '50%',
-                        backgroundColor: active ? color : '#cbd5e1', flexShrink: 0
+                        backgroundColor: st.dot, flexShrink: 0
                       }} />
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                         {c.campaign_name}
