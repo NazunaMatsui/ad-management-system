@@ -8,6 +8,37 @@ router.use(authenticateToken);
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+async function getPastConversations(userId, currentSessionId) {
+  const sessions = await pool.query(
+    `SELECT cs.id, cs.title, cm.role, cm.content
+     FROM chat_sessions cs
+     JOIN chat_messages cm ON cm.session_id = cs.id
+     WHERE cs.user_id = $1
+       AND cs.id != $2
+     ORDER BY cs.updated_at DESC, cm.created_at ASC
+     LIMIT 60`,
+    [userId, currentSessionId || 0]
+  );
+
+  if (sessions.rows.length === 0) return '';
+
+  // セッションごとにグループ化
+  const grouped = {};
+  for (const row of sessions.rows) {
+    if (!grouped[row.id]) grouped[row.id] = { title: row.title, messages: [] };
+    grouped[row.id].messages.push({ role: row.role, content: row.content });
+  }
+
+  const parts = Object.values(grouped).slice(0, 5).map(s => {
+    const msgs = s.messages.slice(-6).map(m =>
+      `${m.role === 'user' ? 'ユーザー' : 'AI'}: ${m.content.slice(0, 200)}`
+    ).join('\n');
+    return `【${s.title}】\n${msgs}`;
+  });
+
+  return parts.join('\n\n');
+}
+
 async function getAdContext() {
   const campaigns = await pool.query(`
     SELECT c.campaign_name, c.status,
@@ -97,8 +128,10 @@ router.post('/', async (req, res) => {
 
   try {
     const { campaigns, memos } = await getAdContext();
+    const pastConversations = await getPastConversations(req.user.user_id, sessionId);
 
     const systemPrompt = `あなたは広告運用の分析アシスタントです。以下の最新データをもとにユーザーの質問に答えてください。
+${pastConversations ? `\n## 過去の会話履歴（参考）\n以下はユーザーとの過去の会話です。「前回〜」「さっきの〜」などの発言はこの履歴を参照してください。\n${pastConversations}\n` : ''}
 
 ## 直近30日間のキャンペーンデータ
 ${campaigns.length > 0
