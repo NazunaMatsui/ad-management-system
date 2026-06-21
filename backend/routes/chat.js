@@ -209,7 +209,11 @@ ${memos.length > 0
       [currentSessionId]
     );
 
-    res.json({ message: text, sessionId: currentSessionId });
+    res.json({
+      message: text,
+      sessionId: currentSessionId,
+      usage: response.usage || null,
+    });
   } catch (error) {
     console.error('チャットエラー:', error);
     res.status(500).json({ error: 'AIとの通信に失敗しました' });
