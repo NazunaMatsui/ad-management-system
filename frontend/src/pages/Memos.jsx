@@ -164,6 +164,7 @@ export default function Memos() {
             <textarea
               value={form.memo_content}
               onChange={e => setForm(f => ({ ...f, memo_content: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCreate(); } }}
               placeholder="運用変更内容、気づいた点、対応事項など..."
               rows={4}
               style={{ ...inputStyle, height: 'auto', padding: '0.625rem 0.875rem', resize: 'vertical', lineHeight: '1.6' }}
@@ -234,6 +235,7 @@ export default function Memos() {
                             <textarea
                               value={editContent}
                               onChange={e => setEditContent(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleUpdate(memo.id); } }}
                               rows={3}
                               autoFocus
                               style={{ ...inputStyle, height: 'auto', padding: '0.5rem 0.75rem', resize: 'vertical', lineHeight: '1.6', fontSize: '0.875rem' }}
