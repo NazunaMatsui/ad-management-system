@@ -259,7 +259,7 @@ export default function AdminUsers() {
             <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '600', color: '#64748b', marginBottom: '0.375rem' }}>権限</label>
             <select
               value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-              style={inputStyle}
+              style={{ ...inputStyle, width: 'auto', minWidth: '160px' }}
             >
               <option value="admin">管理者</option>
               <option value="owner">オーナー</option>
