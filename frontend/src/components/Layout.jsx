@@ -275,11 +275,15 @@ const Layout = ({ children }) => {
           }}>
             <div style={{
               width: '30px', height: '30px', borderRadius: '50%',
-              background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
+              background: user?.avatar ? 'none' : 'linear-gradient(135deg,#3b82f6,#6366f1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'white', fontSize: '0.8rem', fontWeight: '700', flexShrink: 0
+              color: 'white', fontSize: '0.8rem', fontWeight: '700', flexShrink: 0,
+              overflow: 'hidden',
             }}>
-              {user?.username?.[0]}
+              {user?.avatar
+                ? <img src={user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : user?.username?.[0]
+              }
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
               <div style={{ fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.username}</div>

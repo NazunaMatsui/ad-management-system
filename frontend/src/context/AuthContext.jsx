@@ -46,10 +46,19 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateUser = (patch) => {
+    setUser(prev => {
+      const updated = { ...prev, ...patch };
+      sessionStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const value = {
     user,
     login,
     logout,
+    updateUser,
     isAuthenticated: !!user,
     loading
   };

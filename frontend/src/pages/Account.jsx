@@ -1,17 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
+import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
 export default function Account() {
-  const { user, login } = useAuth();
+  const { user, updateUser } = useAuth();
   const [form, setForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [emailForm, setEmailForm] = useState({ current_password: '', new_email: '', confirm_email: '' });
   const [msg, setMsg] = useState(null);
   const [emailMsg, setEmailMsg] = useState(null);
   const [loading, setLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(() => user?.avatar || null);
+  const [avatarHover, setAvatarHover] = useState(false);
+  const [cropSrc, setCropSrc] = useState(null);
+  const [crop, setCrop] = useState();
+  const [completedCrop, setCompletedCrop] = useState(null);
+  const imgRef = useRef(null);
 
   const roleLabel = user?.role === 'owner' ? 'オーナー' : '管理者';
+
+  const handleAvatarClick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('画像サイズは5MB以下にしてください');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => setCropSrc(ev.target.result);
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
+  const onImageLoad = useCallback((e) => {
+    const { width, height } = e.currentTarget;
+    const c = centerCrop(makeAspectCrop({ unit: '%', width: 80 }, 1, width, height), width, height);
+    setCrop(c);
+  }, []);
+
+  const getCroppedBase64 = () => {
+    const image = imgRef.current;
+    if (!image || !completedCrop) return null;
+    const canvas = document.createElement('canvas');
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    const size = 256;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(
+      image,
+      completedCrop.x * scaleX, completedCrop.y * scaleY,
+      completedCrop.width * scaleX, completedCrop.height * scaleY,
+      0, 0, size, size
+    );
+    return canvas.toDataURL('image/jpeg', 0.85);
+  };
+
+  const handleCropDone = async () => {
+    const base64 = getCroppedBase64();
+    if (!base64) return;
+    setCropSrc(null);
+    setAvatarPreview(base64);
+    try {
+      await api.patch('/auth/me/avatar', { avatar: base64 });
+      updateUser({ avatar: base64 });
+    } catch {
+      alert('アバターの保存に失敗しました');
+    }
+  };
 
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
   const handleEmailChange = (e) => setEmailForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -83,6 +147,48 @@ export default function Account() {
 
   return (
     <div style={{ padding: '1.75rem 2rem', maxWidth: '900px' }}>
+
+      {/* トリミングモーダル */}
+      {cropSrc && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            backgroundColor: '#fff', borderRadius: '16px',
+            padding: '1.5rem', maxWidth: '480px', width: '90%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: '700', color: '#1e293b', marginBottom: '1rem' }}>
+              画像をトリミング
+            </h3>
+            <div style={{ maxHeight: '360px', overflow: 'auto', display: 'flex', justifyContent: 'center' }}>
+              <ReactCrop
+                crop={crop} onChange={c => setCrop(c)}
+                onComplete={c => setCompletedCrop(c)}
+                aspect={1} circularCrop
+              >
+                <img ref={imgRef} src={cropSrc} onLoad={onImageLoad}
+                  style={{ maxWidth: '100%', maxHeight: '360px' }} alt="crop" />
+              </ReactCrop>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => setCropSrc(null)} style={{
+                padding: '0.5rem 1rem', borderRadius: '8px',
+                border: '1px solid #e2e8f0', backgroundColor: '#fff',
+                color: '#64748b', fontSize: '0.875rem', fontWeight: '600', cursor: 'pointer',
+              }}>キャンセル</button>
+              <button onClick={handleCropDone} style={{
+                padding: '0.5rem 1.25rem', borderRadius: '8px', border: 'none',
+                background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
+                color: 'white', fontSize: '0.875rem', fontWeight: '600', cursor: 'pointer',
+              }}>この範囲で保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h1 style={{ fontSize: '1.4rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.25rem' }}>
         アカウント情報
       </h1>
@@ -97,13 +203,32 @@ export default function Account() {
         marginBottom: '1.5rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
-          <div style={{
-            width: '52px', height: '52px', borderRadius: '50%',
-            background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'white', fontSize: '1.25rem', fontWeight: '700', flexShrink: 0,
-          }}>
-            {user?.username?.[0]}
+          <div
+            onClick={handleAvatarClick}
+            onMouseEnter={() => setAvatarHover(true)}
+            onMouseLeave={() => setAvatarHover(false)}
+            style={{
+              width: '52px', height: '52px', borderRadius: '50%',
+              background: avatarPreview ? 'none' : 'linear-gradient(135deg,#3b82f6,#6366f1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'white', fontSize: '1.25rem', fontWeight: '700', flexShrink: 0,
+              cursor: 'pointer', position: 'relative', overflow: 'hidden',
+            }}
+          >
+            {avatarPreview
+              ? <img src={avatarPreview} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              : user?.username?.[0]
+            }
+            {avatarHover && (
+              <div style={{
+                position: 'absolute', inset: 0, borderRadius: '50%',
+                backgroundColor: 'rgba(0,0,0,0.45)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.6rem', color: 'white', fontWeight: '600', textAlign: 'center', lineHeight: 1.3,
+              }}>
+                変更
+              </div>
+            )}
           </div>
           <div>
             <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#1e293b' }}>

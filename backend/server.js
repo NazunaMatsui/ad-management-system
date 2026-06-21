@@ -48,6 +48,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'サーバーエラーが発生しました' });
 });
 
+// DBマイグレーション
+const pool = require('./config/database');
+pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT`).catch(() => {});
+
 // サーバー起動
 app.listen(PORT, () => {
   startScheduler();

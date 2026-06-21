@@ -110,14 +110,36 @@ router.get('/me', async (req, res) => {
   try {
     const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
     const result = await pool.query(
-      'SELECT user_id, username, email, role FROM users WHERE user_id = $1',
+      'SELECT user_id, username, email, role, avatar FROM users WHERE user_id = $1',
       [decoded.userId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'ユーザーが見つかりません' });
     const u = result.rows[0];
-    res.json({ userId: u.user_id, username: u.username, email: u.email, role: u.role });
+    res.json({ userId: u.user_id, username: u.username, email: u.email, role: u.role, avatar: u.avatar });
   } catch {
     return res.status(401).json({ error: '無効なトークンです' });
+  }
+});
+
+// アバター更新
+router.patch('/me/avatar', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: '認証が必要です' });
+  let userId;
+  try {
+    const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+    userId = decoded.userId;
+  } catch {
+    return res.status(401).json({ error: '無効なトークンです' });
+  }
+  const { avatar } = req.body;
+  if (!avatar) return res.status(400).json({ error: '画像データが必要です' });
+  if (avatar.length > 5 * 1024 * 1024) return res.status(400).json({ error: '画像サイズは5MB以下にしてください' });
+  try {
+    await pool.query('UPDATE users SET avatar = $1 WHERE user_id = $2', [avatar, userId]);
+    res.json({ avatar });
+  } catch (err) {
+    res.status(500).json({ error: 'サーバーエラーが発生しました' });
   }
 });
 
