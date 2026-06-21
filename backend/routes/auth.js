@@ -134,7 +134,7 @@ router.patch('/me/avatar', async (req, res) => {
   }
   const { avatar } = req.body;
   if (!avatar) return res.status(400).json({ error: '画像データが必要です' });
-  if (avatar.length > 5 * 1024 * 1024) return res.status(400).json({ error: '画像サイズは5MB以下にしてください' });
+  if (avatar.length > 10 * 1024 * 1024) return res.status(400).json({ error: '画像サイズは10MB以下にしてください' });
   try {
     await pool.query('UPDATE users SET avatar = $1 WHERE user_id = $2', [avatar, userId]);
     res.json({ avatar });
