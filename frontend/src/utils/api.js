@@ -79,9 +79,26 @@ export const creativeAPI = {
   delete: (id) => api.delete(`/creatives/${id}`)
 };
 
+// クリエイティブ素材API（画像・広告文 個別管理）
+export const creativeImageAPI = {
+  getAll: (params) => api.get('/creative-assets/images', { params }),
+  create: (formData) => api.post('/creative-assets/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id, formData) => api.put(`/creative-assets/images/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  delete: (id) => api.delete(`/creative-assets/images/${id}`),
+};
+export const creativeTextAPI = {
+  getAll: (params) => api.get('/creative-assets/texts', { params }),
+  create: (data) => api.post('/creative-assets/texts', data),
+  update: (id, data) => api.put(`/creative-assets/texts/${id}`, data),
+  delete: (id) => api.delete(`/creative-assets/texts/${id}`),
+};
+
 // チャットAPI
 export const chatAPI = {
-  send: (messages) => api.post('/chat', { messages })
+  send: (messages, sessionId) => api.post('/chat', { messages, sessionId }),
+  getSessions: () => api.get('/chat/sessions'),
+  getSession: (sessionId) => api.get(`/chat/sessions/${sessionId}`),
+  deleteSession: (sessionId) => api.delete(`/chat/sessions/${sessionId}`),
 };
 
 // Meta API

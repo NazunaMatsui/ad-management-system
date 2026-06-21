@@ -1,339 +1,381 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { creativeAPI, campaignAPI } from '../utils/api';
+import { creativeImageAPI, creativeTextAPI } from '../utils/api';
 
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5001';
 
-const STATUS_CONFIG = {
-  active:   { label: '運用中', bg: '#dcfce7', color: '#16a34a' },
-  paused:   { label: '停止中', bg: '#fee2e2', color: '#dc2626' },
-  archived: { label: 'アーカイブ', bg: '#f1f5f9', color: '#64748b' },
+const labelStyle = {
+  display: 'block', fontSize: '0.8rem', fontWeight: '600',
+  color: '#374151', marginBottom: '5px',
+};
+const inputStyle = {
+  width: '100%', padding: '9px 12px',
+  border: '1.5px solid #e2e8f0', borderRadius: '8px',
+  fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box',
+  fontFamily: 'inherit',
 };
 
-const EMPTY_FORM = { campaign_id: '', name: '', headline: '', body_text: '', status: 'active' };
+// ─── 画像管理タブ ────────────────────────────────────────────────────────────
 
-export default function Creatives() {
-  const [creatives, setCreatives] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
+function ImageTab() {
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState({ name: '', memo: '', tags: '' });
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [saving, setSaving] = useState(false);
-  const [filterCampaign, setFilterCampaign] = useState('');
-  const [expandedId, setExpandedId] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    Promise.all([creativeAPI.getAll(), campaignAPI.getAll()])
-      .then(([cr, ca]) => { setCreatives(cr.data); setCampaigns(ca.data); })
-      .finally(() => setLoading(false));
-  }, []);
+  const load = async (q) => {
+    setLoading(true);
+    try {
+      const res = await creativeImageAPI.getAll(q ? { search: q } : {});
+      setItems(res.data);
+    } catch {}
+    setLoading(false);
+  };
 
-  const filtered = filterCampaign
-    ? creatives.filter(c => String(c.campaign_id) === filterCampaign)
-    : creatives;
+  useEffect(() => { load(); }, []);
 
   const openNew = () => {
     setEditing(null);
-    setForm(EMPTY_FORM);
+    setForm({ name: '', memo: '', tags: '' });
     setImageFile(null);
     setImagePreview('');
     setShowForm(true);
   };
 
-  const openEdit = (c) => {
-    setEditing(c);
-    setForm({ campaign_id: c.campaign_id || '', name: c.name, headline: c.headline || '', body_text: c.body_text || '', status: c.status || 'active' });
+  const openEdit = (item) => {
+    setEditing(item);
+    setForm({ name: item.name, memo: item.memo || '', tags: item.tags || '' });
     setImageFile(null);
-    setImagePreview(c.image_url ? `${API_BASE}${c.image_url}` : '');
+    setImagePreview(item.image_url ? `${API_BASE}${item.image_url}` : '');
     setShowForm(true);
   };
 
-  const handleImageChange = (file) => {
-    if (!file) return;
+  const handleImage = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
     setImageFile(file);
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target.result);
     reader.readAsDataURL(file);
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) handleImageChange(file);
-  };
-
   const save = async () => {
-    if (!form.name.trim()) return alert('クリエイティブ名を入力してください');
+    if (!form.name.trim()) return alert('名前を入力してください');
+    if (!editing && !imageFile) return alert('画像を選択してください');
     setSaving(true);
     try {
       const fd = new FormData();
       fd.append('name', form.name);
-      fd.append('campaign_id', form.campaign_id || '');
-      fd.append('headline', form.headline || '');
-      fd.append('body_text', form.body_text || '');
-      fd.append('status', form.status);
+      fd.append('memo', form.memo);
+      fd.append('tags', form.tags);
       if (imageFile) fd.append('image', imageFile);
-
       if (editing) {
-        const res = await creativeAPI.update(editing.creative_id, fd);
-        const camp = campaigns.find(x => String(x.campaign_id) === String(res.data.campaign_id));
-        setCreatives(prev => prev.map(c => c.creative_id === editing.creative_id ? { ...res.data, campaign_name: camp?.campaign_name } : c));
+        await creativeImageAPI.update(editing.id, fd);
       } else {
-        const res = await creativeAPI.create(fd);
-        const camp = campaigns.find(x => String(x.campaign_id) === String(form.campaign_id));
-        setCreatives(prev => [{ ...res.data, campaign_name: camp?.campaign_name }, ...prev]);
+        await creativeImageAPI.create(fd);
       }
       setShowForm(false);
-    } catch {
-      alert('保存に失敗しました');
-    } finally {
-      setSaving(false);
-    }
+      load(search);
+    } catch { alert('保存に失敗しました'); }
+    finally { setSaving(false); }
   };
 
-  const remove = async (id) => {
-    if (!confirm('このクリエイティブを削除しますか？')) return;
-    await creativeAPI.delete(id);
-    setCreatives(prev => prev.filter(c => c.creative_id !== id));
+  const del = async (id) => {
+    if (!window.confirm('削除しますか？')) return;
+    await creativeImageAPI.delete(id);
+    setItems(prev => prev.filter(i => i.id !== id));
   };
-
-  if (loading) return <div style={{ padding: '2rem', color: 'var(--text-muted)' }}>読み込み中...</div>;
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1100px' }}>
-      {/* ヘッダー */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: '700', color: '#1e293b', margin: 0 }}>クリエイティブ管理</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
-            Meta広告で使用した画像・広告文・見出しを管理します
-          </p>
-        </div>
-        <button onClick={openNew} style={{
-          display: 'flex', alignItems: 'center', gap: '6px',
-          padding: '0.5rem 1.1rem', borderRadius: '9px',
-          background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
-          border: 'none', color: '#fff', fontSize: '0.875rem',
-          fontWeight: '600', cursor: 'pointer',
-          boxShadow: '0 2px 8px rgba(99,102,241,0.3)'
-        }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          新規作成
-        </button>
+    <div>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center' }}>
+        <form onSubmit={e => { e.preventDefault(); load(search); }} style={{ display: 'flex', gap: '8px', flex: 1 }}>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="名前・タグ・メモで検索..."
+            style={{ flex: 1, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none' }} />
+          <button type="submit" style={{ padding: '8px 16px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem' }}>検索</button>
+        </form>
+        <button onClick={openNew} style={{ padding: '8px 18px', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', whiteSpace: 'nowrap' }}>＋ 画像追加</button>
       </div>
 
-      {/* フィルター */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <select value={filterCampaign} onChange={e => setFilterCampaign(e.target.value)} style={{
-          padding: '0.45rem 0.875rem', borderRadius: '8px',
-          border: '1px solid var(--border-color)', fontSize: '0.82rem',
-          color: 'var(--text-primary)', background: '#fff', cursor: 'pointer'
-        }}>
-          <option value="">全キャンペーン</option>
-          {campaigns.map(c => <option key={c.campaign_id} value={c.campaign_id}>{c.campaign_name}</option>)}
-        </select>
-        <span style={{ marginLeft: '0.75rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{filtered.length}件</span>
-      </div>
-
-      {/* カード一覧 */}
-      {filtered.length === 0 ? (
-        <div style={{
-          textAlign: 'center', padding: '4rem 2rem',
-          background: '#fff', borderRadius: '14px',
-          border: '1px solid var(--border-color)',
-          color: 'var(--text-muted)', fontSize: '0.875rem'
-        }}>
-          クリエイティブがまだ登録されていません。「新規作成」から追加してください。
-        </div>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>読み込み中...</div>
+      ) : items.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>画像がまだ登録されていません</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: '1rem' }}>
-          {filtered.map(cr => {
-            const st = STATUS_CONFIG[cr.status] || STATUS_CONFIG.active;
-            const expanded = expandedId === cr.creative_id;
-            const imgSrc = cr.image_url ? `${API_BASE}${cr.image_url}` : '';
-            return (
-              <div key={cr.creative_id} style={{
-                background: '#fff', borderRadius: '14px',
-                border: '1px solid var(--border-color)',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.05)', overflow: 'hidden'
-              }}>
-                {imgSrc ? (
-                  <div style={{ height: '160px', overflow: 'hidden', background: '#f8fafc' }}>
-                    <img src={imgSrc} alt={cr.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.parentNode.style.display='none'; }} />
-                  </div>
-                ) : (
-                  <div style={{
-                    height: '120px', background: 'linear-gradient(135deg,#e0e7ff,#f0fdf4)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}>
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-                      <polyline points="21 15 16 10 5 21"/>
-                    </svg>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+          {items.map(item => (
+            <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <div style={{ position: 'relative', paddingTop: '75%', background: '#f8fafc' }}>
+                <img src={`${API_BASE}${item.image_url}`} alt={item.name}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={e => { e.target.style.display = 'none'; }} />
+              </div>
+              <div style={{ padding: '10px 12px' }}>
+                <div style={{ fontWeight: '600', fontSize: '0.82rem', color: '#1e293b', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                {item.tags && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                    {item.tags.split(',').map(t => t.trim()).filter(Boolean).map(t => (
+                      <span key={t} style={{ fontSize: '0.65rem', padding: '1px 6px', background: '#eff6ff', color: '#3b82f6', borderRadius: '99px' }}>{t}</span>
+                    ))}
                   </div>
                 )}
-                <div style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#1e293b', flex: 1 }}>{cr.name}</div>
-                    <span style={{ fontSize: '0.65rem', fontWeight: '600', padding: '0.15rem 0.5rem', borderRadius: '99px', background: st.bg, color: st.color, flexShrink: 0 }}>{st.label}</span>
+                {item.memo && <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: '8px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.memo}</div>}
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => openEdit(item)} style={{ flex: 1, padding: '5px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.72rem', color: '#475569' }}>編集</button>
+                  <button onClick={() => del(item.id)} style={{ flex: 1, padding: '5px', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.72rem', color: '#dc2626' }}>削除</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowForm(false); }}>
+          <div style={{ background: '#fff', borderRadius: '16px', width: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '28px' }}>
+            <h2 style={{ margin: '0 0 20px', fontSize: '1.1rem', fontWeight: '700', color: '#1e293b' }}>{editing ? '画像を編集' : '画像を追加'}</h2>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>名前 *</label>
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} placeholder="例：本町院_メインビジュアル" />
+            </div>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>画像{editing ? '（変更する場合のみ）' : ' *'}</label>
+              <div
+                onDrop={e => { e.preventDefault(); setDragOver(false); handleImage(e.dataTransfer.files[0]); }}
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onClick={() => fileInputRef.current?.click()}
+                style={{ border: `2px dashed ${dragOver ? '#3b82f6' : '#cbd5e1'}`, borderRadius: '10px', padding: '20px', textAlign: 'center', cursor: 'pointer', background: dragOver ? '#eff6ff' : '#f8fafc', transition: 'all 0.2s' }}
+              >
+                {imagePreview
+                  ? <img src={imagePreview} alt="preview" style={{ maxHeight: '160px', maxWidth: '100%', borderRadius: '6px' }} />
+                  : <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}><div style={{ fontSize: '2rem', marginBottom: '6px' }}>🖼️</div>クリックまたはドラッグ＆ドロップ</div>
+                }
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleImage(e.target.files[0])} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>タグ（カンマ区切り）</label>
+              <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} style={inputStyle} placeholder="例：本町, 美容鍼, メイン" />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={labelStyle}>メモ</label>
+              <textarea value={form.memo} onChange={e => setForm(f => ({ ...f, memo: e.target.value }))} style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} placeholder="使用用途や注意点など" />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowForm(false)} style={{ padding: '9px 20px', background: '#f1f5f9', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem' }}>キャンセル</button>
+              <button onClick={save} disabled={saving} style={{ padding: '9px 24px', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: '#fff', border: 'none', borderRadius: '8px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
+                {saving ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── 広告文管理タブ ──────────────────────────────────────────────────────────
+
+function TextTab() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name: '', headline: '', body_text: '', memo: '', tags: '' });
+  const [saving, setSaving] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+
+  const load = async (q) => {
+    setLoading(true);
+    try {
+      const res = await creativeTextAPI.getAll(q ? { search: q } : {});
+      setItems(res.data);
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const openNew = () => {
+    setEditing(null);
+    setForm({ name: '', headline: '', body_text: '', memo: '', tags: '' });
+    setShowForm(true);
+  };
+
+  const openEdit = (item) => {
+    setEditing(item);
+    setForm({ name: item.name, headline: item.headline || '', body_text: item.body_text || '', memo: item.memo || '', tags: item.tags || '' });
+    setShowForm(true);
+  };
+
+  const save = async () => {
+    if (!form.name.trim()) return alert('名前を入力してください');
+    setSaving(true);
+    try {
+      if (editing) { await creativeTextAPI.update(editing.id, form); }
+      else { await creativeTextAPI.create(form); }
+      setShowForm(false);
+      load(search);
+    } catch { alert('保存に失敗しました'); }
+    finally { setSaving(false); }
+  };
+
+  const del = async (id) => {
+    if (!window.confirm('削除しますか？')) return;
+    await creativeTextAPI.delete(id);
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center' }}>
+        <form onSubmit={e => { e.preventDefault(); load(search); }} style={{ display: 'flex', gap: '8px', flex: 1 }}>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="名前・見出し・本文・タグで検索..."
+            style={{ flex: 1, padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.875rem', outline: 'none' }} />
+          <button type="submit" style={{ padding: '8px 16px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem' }}>検索</button>
+        </form>
+        <button onClick={openNew} style={{ padding: '8px 18px', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', whiteSpace: 'nowrap' }}>＋ 広告文追加</button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>読み込み中...</div>
+      ) : items.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>広告文がまだ登録されていません</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {items.map(item => {
+            const expanded = expandedId === item.id;
+            return (
+              <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff', overflow: 'hidden' }}>
+                <div onClick={() => setExpandedId(expanded ? null : item.id)}
+                  style={{ padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: '600', fontSize: '0.9rem', color: '#1e293b' }}>{item.name}</div>
+                    {item.headline && <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>見出し：{item.headline}</div>}
+                    {item.tags && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '5px' }}>
+                        {item.tags.split(',').map(t => t.trim()).filter(Boolean).map(t => (
+                          <span key={t} style={{ fontSize: '0.65rem', padding: '1px 6px', background: '#f0fdf4', color: '#16a34a', borderRadius: '99px' }}>{t}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {cr.campaign_name && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>📁 {cr.campaign_name}</div>}
-                  {cr.headline && (
-                    <div style={{ fontSize: '0.8rem', fontWeight: '600', color: '#1e40af', marginBottom: '0.375rem', padding: '0.3rem 0.6rem', background: '#eff6ff', borderRadius: '6px' }}>
-                      {cr.headline}
-                    </div>
-                  )}
-                  {cr.body_text && (
-                    <div style={{
-                      fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '0.75rem',
-                      display: '-webkit-box', WebkitLineClamp: expanded ? 'none' : 3, WebkitBoxOrient: 'vertical', overflow: 'hidden'
-                    }}>
-                      {cr.body_text}
-                    </div>
-                  )}
-                  {cr.body_text && cr.body_text.length > 80 && (
-                    <button onClick={() => setExpandedId(expanded ? null : cr.creative_id)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.75rem', cursor: 'pointer', padding: '0 0 0.5rem', fontWeight: '500' }}>
-                      {expanded ? '折りたたむ ▲' : '続きを見る ▼'}
-                    </button>
-                  )}
-                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
-                    <button onClick={() => openEdit(cr)} style={{ padding: '0.35rem 0.8rem', borderRadius: '7px', border: '1px solid var(--border-color)', background: '#fff', color: 'var(--text-secondary)', fontSize: '0.78rem', cursor: 'pointer', fontWeight: '500' }}>編集</button>
-                    <button onClick={() => remove(cr.creative_id)} style={{ padding: '0.35rem 0.8rem', borderRadius: '7px', border: '1px solid #fecaca', background: '#fff', color: '#ef4444', fontSize: '0.78rem', cursor: 'pointer', fontWeight: '500' }}>削除</button>
+                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center' }}>
+                    <button onClick={e => { e.stopPropagation(); openEdit(item); }} style={{ padding: '5px 12px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', color: '#475569' }}>編集</button>
+                    <button onClick={e => { e.stopPropagation(); del(item.id); }} style={{ padding: '5px 12px', background: '#fee2e2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', color: '#dc2626' }}>削除</button>
+                    <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{expanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
+                {expanded && (
+                  <div style={{ padding: '0 18px 16px', borderTop: '1px solid #f1f5f9' }}>
+                    {item.headline && (
+                      <div style={{ marginTop: '12px' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>見出し</div>
+                        <div style={{ fontSize: '0.875rem', color: '#1e293b', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px' }}>{item.headline}</div>
+                      </div>
+                    )}
+                    {item.body_text && (
+                      <div style={{ marginTop: '10px' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>本文</div>
+                        <div style={{ fontSize: '0.875rem', color: '#1e293b', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px', whiteSpace: 'pre-wrap' }}>{item.body_text}</div>
+                      </div>
+                    )}
+                    {item.memo && (
+                      <div style={{ marginTop: '10px' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>メモ</div>
+                        <div style={{ fontSize: '0.8rem', color: '#64748b', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px' }}>{item.memo}</div>
+                      </div>
+                    )}
+                    <div style={{ marginTop: '8px', fontSize: '0.68rem', color: '#94a3b8' }}>登録日: {new Date(item.created_at).toLocaleDateString('ja-JP')}</div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
-      {/* モーダル */}
       {showForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem' }}>
-          <div style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: '#1e293b' }}>
-                {editing ? 'クリエイティブを編集' : 'クリエイティブを新規作成'}
-              </h2>
-              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1 }}>✕</button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowForm(false); }}>
+          <div style={{ background: '#fff', borderRadius: '16px', width: '540px', maxHeight: '90vh', overflowY: 'auto', padding: '28px' }}>
+            <h2 style={{ margin: '0 0 20px', fontSize: '1.1rem', fontWeight: '700', color: '#1e293b' }}>{editing ? '広告文を編集' : '広告文を追加'}</h2>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>名前 *</label>
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} placeholder="例：美容鍼LP_夏キャンペーン_見出しA" />
+            </div>
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>見出し</label>
+              <input value={form.headline} onChange={e => setForm(f => ({ ...f, headline: e.target.value }))} style={inputStyle} placeholder="例：【限定】美容鍼で本格ケア ¥1,980〜" />
+            </div>
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>本文</label>
+              <textarea value={form.body_text} onChange={e => setForm(f => ({ ...f, body_text: e.target.value }))} style={{ ...inputStyle, minHeight: '120px', resize: 'vertical' }} placeholder="広告本文を入力..." />
+            </div>
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>タグ（カンマ区切り）</label>
+              <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} style={inputStyle} placeholder="例：本町, 美容鍼, 夏" />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={labelStyle}>メモ</label>
+              <textarea value={form.memo} onChange={e => setForm(f => ({ ...f, memo: e.target.value }))} style={{ ...inputStyle, minHeight: '70px', resize: 'vertical' }} placeholder="使用状況や改善点など" />
             </div>
 
-            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {/* クリエイティブ名 */}
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', fontWeight: '600', color: '#374151' }}>
-                クリエイティブ名 <span style={{ color: '#ef4444' }}>*</span>
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="例：春キャンペーン_バナーA"
-                  style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.875rem', fontWeight: '400' }} />
-              </label>
-
-              {/* キャンペーン */}
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', fontWeight: '600', color: '#374151' }}>
-                キャンペーン
-                <select value={form.campaign_id} onChange={e => setForm(f => ({ ...f, campaign_id: e.target.value }))}
-                  style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.875rem' }}>
-                  <option value="">選択しない</option>
-                  {campaigns.map(c => <option key={c.campaign_id} value={c.campaign_id}>{c.campaign_name}</option>)}
-                </select>
-              </label>
-
-              {/* 見出し */}
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', fontWeight: '600', color: '#374151' }}>
-                見出し（ヘッドライン）
-                <input value={form.headline} onChange={e => setForm(f => ({ ...f, headline: e.target.value }))} placeholder="例：今だけ限定！無料体験受付中"
-                  style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.875rem', fontWeight: '400' }} />
-              </label>
-
-              {/* 広告文 */}
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', fontWeight: '600', color: '#374151' }}>
-                広告文（ボディテキスト）
-                <textarea value={form.body_text} onChange={e => setForm(f => ({ ...f, body_text: e.target.value }))} placeholder="例：あなたの目標達成をサポート。まずは無料体験から..." rows={4}
-                  style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.875rem', fontWeight: '400', resize: 'vertical', fontFamily: 'inherit' }} />
-              </label>
-
-              {/* 画像アップロード */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: '600', color: '#374151' }}>画像</span>
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleDrop}
-                  style={{
-                    border: `2px dashed ${dragOver ? '#6366f1' : '#cbd5e1'}`,
-                    borderRadius: '10px', cursor: 'pointer',
-                    background: dragOver ? '#eef2ff' : '#f8fafc',
-                    transition: 'all 0.15s', overflow: 'hidden'
-                  }}
-                >
-                  {imagePreview ? (
-                    <div style={{ position: 'relative' }}>
-                      <img src={imagePreview} alt="preview" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', display: 'block' }} />
-                      <div style={{
-                        position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        opacity: 0, transition: 'opacity 0.15s',
-                      }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                        onMouseLeave={e => e.currentTarget.style.opacity = '0'}
-                        onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                        style={{
-                          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: '#fff', fontSize: '0.82rem', fontWeight: '600', gap: '6px', cursor: 'pointer'
-                        }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        画像を変更
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ padding: '2rem', textAlign: 'center' }}>
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 0.75rem' }}>
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                      </svg>
-                      <div style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: '500' }}>クリックまたはドラッグ＆ドロップ</div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.25rem' }}>PNG・JPG・GIF・WebP（最大10MB）</div>
-                    </div>
-                  )}
-                </div>
-                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleImageChange(e.target.files[0])} />
-                {imagePreview && (
-                  <button onClick={() => { setImageFile(null); setImagePreview(''); }} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '500', padding: 0 }}>
-                    画像を削除
-                  </button>
-                )}
-              </div>
-
-              {/* ステータス */}
-              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.82rem', fontWeight: '600', color: '#374151' }}>
-                ステータス
-                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                  style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.875rem' }}>
-                  <option value="active">運用中</option>
-                  <option value="paused">停止中</option>
-                  <option value="archived">アーカイブ</option>
-                </select>
-              </label>
-            </div>
-
-            <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowForm(false)} style={{ padding: '0.5rem 1.1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#fff', color: 'var(--text-secondary)', fontSize: '0.875rem', cursor: 'pointer' }}>キャンセル</button>
-              <button onClick={save} disabled={saving} style={{ padding: '0.5rem 1.25rem', borderRadius: '8px', background: saving ? '#cbd5e1' : 'linear-gradient(135deg,#3b82f6,#6366f1)', border: 'none', color: '#fff', fontSize: '0.875rem', fontWeight: '600', cursor: saving ? 'not-allowed' : 'pointer' }}>
-                {saving ? '保存中...' : '保存する'}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowForm(false)} style={{ padding: '9px 20px', background: '#f1f5f9', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem' }}>キャンセル</button>
+              <button onClick={save} disabled={saving} style={{ padding: '9px 24px', background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: '#fff', border: 'none', borderRadius: '8px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: '600' }}>
+                {saving ? '保存中...' : '保存'}
               </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── メインページ ────────────────────────────────────────────────────────────
+
+export default function Creatives() {
+  const [tab, setTab] = useState('images');
+
+  return (
+    <div style={{ padding: '2rem', maxWidth: '1100px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', margin: 0 }}>クリエイティブ管理</h1>
+        <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '4px' }}>画像素材と広告文を個別に管理・検索できます</p>
+      </div>
+
+      <div style={{ display: 'flex', marginBottom: '24px', borderBottom: '2px solid #e2e8f0' }}>
+        {[
+          { key: 'images', label: '🖼️  画像素材' },
+          { key: 'texts',  label: '📝  広告文' },
+        ].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            padding: '10px 24px', border: 'none', cursor: 'pointer',
+            fontSize: '0.9rem', fontWeight: tab === t.key ? '700' : '500',
+            color: tab === t.key ? '#3b82f6' : '#64748b',
+            background: 'none',
+            borderBottom: tab === t.key ? '2px solid #3b82f6' : '2px solid transparent',
+            marginBottom: '-2px', transition: 'all 0.15s',
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab === 'images' ? <ImageTab /> : <TextTab />}
     </div>
   );
 }
