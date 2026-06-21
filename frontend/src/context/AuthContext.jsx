@@ -8,17 +8,17 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (!token) { setLoading(false); return; }
 
     // トークンでサーバーから実際のユーザー情報を取得
     authAPI.me(token).then(res => {
       setUser(res.data);
-      localStorage.setItem('user', JSON.stringify(res.data));
+      sessionStorage.setItem('user', JSON.stringify(res.data));
     }).catch(() => {
       // トークンが無効なら強制ログアウト
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
     }).finally(() => setLoading(false));
   }, []);
 
@@ -26,23 +26,23 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login(email, password);
       const { token, user: userData } = response.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
+
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      
+
       return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'ログインに失敗しました' 
+      return {
+        success: false,
+        error: error.response?.data?.error || 'ログインに失敗しました'
       };
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     setUser(null);
   };
 
