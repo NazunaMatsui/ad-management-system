@@ -3,14 +3,43 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
 export default function Account() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [form, setForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [emailForm, setEmailForm] = useState({ current_password: '', new_email: '', confirm_email: '' });
   const [msg, setMsg] = useState(null);
+  const [emailMsg, setEmailMsg] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
 
   const roleLabel = user?.role === 'owner' ? 'オーナー' : '管理者';
 
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  const handleEmailChange = (e) => setEmailForm(f => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleEmailSubmit = async (e) => {
+    e.preventDefault();
+    setEmailMsg(null);
+    if (emailForm.new_email !== emailForm.confirm_email) {
+      setEmailMsg({ type: 'error', text: '新しいメールアドレスが一致しません' });
+      return;
+    }
+    setEmailLoading(true);
+    try {
+      const res = await api.post('/auth/change-email', {
+        current_password: emailForm.current_password,
+        new_email: emailForm.new_email,
+      });
+      // Update token and user in sessionStorage
+      sessionStorage.setItem('token', res.data.token);
+      const updatedUser = { ...user, email: res.data.email };
+      sessionStorage.setItem('user', JSON.stringify(updatedUser));
+      // Reload to refresh auth context
+      window.location.reload();
+    } catch (err) {
+      setEmailMsg({ type: 'error', text: err.response?.data?.error || 'メールアドレスの変更に失敗しました' });
+      setEmailLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,7 +82,7 @@ export default function Account() {
   };
 
   return (
-    <div style={{ padding: '1.75rem 2rem', maxWidth: '560px' }}>
+    <div style={{ padding: '1.75rem 2rem', maxWidth: '900px' }}>
       <h1 style={{ fontSize: '1.4rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.25rem' }}>
         アカウント情報
       </h1>
@@ -105,11 +134,77 @@ export default function Account() {
         </div>
       </div>
 
-      {/* パスワード変更 */}
+      {/* メールアドレス変更・パスワード変更 横並び */}
+      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+
+      {/* メールアドレス変更 */}
       <div style={{
-        backgroundColor: '#fff', borderRadius: '12px',
+        flex: 1, backgroundColor: '#fff', borderRadius: '12px',
         border: '1px solid #e2e8f0', padding: '1.5rem',
       }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1e293b', marginBottom: '1.25rem' }}>
+          メールアドレス変更
+        </h2>
+
+        {emailMsg && (
+          <div style={{
+            padding: '0.65rem 1rem', borderRadius: '8px', marginBottom: '1rem',
+            fontSize: '0.84rem', fontWeight: '500',
+            backgroundColor: emailMsg.type === 'success' ? '#f0fdf4' : '#fef2f2',
+            color: emailMsg.type === 'success' ? '#166534' : '#991b1b',
+            border: `1px solid ${emailMsg.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+          }}>
+            {emailMsg.text}
+          </div>
+        )}
+
+        <form onSubmit={handleEmailSubmit} style={{ display: 'grid', gap: '1rem' }}>
+          <div>
+            <label style={labelStyle}>現在のパスワード</label>
+            <input
+              type="password" name="current_password"
+              value={emailForm.current_password} onChange={handleEmailChange}
+              style={inputStyle} required autoComplete="current-password"
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>新しいメールアドレス</label>
+            <input
+              type="email" name="new_email"
+              value={emailForm.new_email} onChange={handleEmailChange}
+              style={inputStyle} required placeholder="new@example.com"
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>新しいメールアドレス（確認）</label>
+            <input
+              type="email" name="confirm_email"
+              value={emailForm.confirm_email} onChange={handleEmailChange}
+              style={inputStyle} required placeholder="new@example.com"
+            />
+          </div>
+          <button
+            type="submit" disabled={emailLoading}
+            style={{
+              padding: '0.6rem 1.25rem', borderRadius: '8px', border: 'none',
+              fontSize: '0.875rem', fontWeight: '600', cursor: emailLoading ? 'not-allowed' : 'pointer',
+              color: 'white',
+              background: emailLoading ? '#94a3b8' : 'linear-gradient(135deg,#3b82f6,#6366f1)',
+              boxShadow: emailLoading ? 'none' : '0 2px 6px rgba(99,102,241,0.3)',
+              transition: 'all 0.2s', width: 'fit-content',
+            }}
+          >
+            {emailLoading ? '変更中...' : 'メールアドレスを変更する'}
+          </button>
+        </form>
+      </div>
+
+      {/* パスワード変更 */}
+      <div style={{
+        flex: 1, backgroundColor: '#fff', borderRadius: '12px',
+        border: '1px solid #e2e8f0', padding: '1.5rem',
+      }}>
+
         <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1e293b', marginBottom: '1.25rem' }}>
           パスワード変更
         </h2>
@@ -167,6 +262,8 @@ export default function Account() {
           </button>
         </form>
       </div>
+
+      </div>{/* end 横並び */}
     </div>
   );
 }

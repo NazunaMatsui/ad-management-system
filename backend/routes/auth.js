@@ -183,6 +183,46 @@ router.delete('/users/:id', adminOnly, async (req, res) => {
   }
 });
 
+// メールアドレス変更
+router.post('/change-email', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: '認証が必要です' });
+  let userId;
+  try {
+    const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+    userId = decoded.userId;
+  } catch {
+    return res.status(401).json({ error: '無効なトークンです' });
+  }
+
+  const { current_password, new_email } = req.body;
+  if (!current_password || !new_email) return res.status(400).json({ error: '入力が不正です' });
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE user_id = $1', [userId]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'ユーザーが見つかりません' });
+
+    const valid = await bcrypt.compare(current_password, user.password_hash);
+    if (!valid) return res.status(400).json({ error: '現在のパスワードが間違っています' });
+
+    await pool.query('UPDATE users SET email = $1 WHERE user_id = $2', [new_email, userId]);
+
+    const newToken = jwt.sign(
+      { userId: user.user_id, email: new_email, role: user.role, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    res.json({ message: 'メールアドレスを変更しました', token: newToken, email: new_email });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'このメールアドレスは既に使用されています' });
+    }
+    console.error(error);
+    res.status(500).json({ error: 'サーバーエラーが発生しました' });
+  }
+});
+
 // パスワード変更
 router.post('/change-password', async (req, res) => {
   const token = req.headers.authorization?.split(' ')[1];
