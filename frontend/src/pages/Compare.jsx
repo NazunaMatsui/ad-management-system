@@ -35,7 +35,7 @@ const aggregateSummary = (rows) => {
   t.avg_cpa  = (t.total_conversions_meta || 0) > 0 ? t.total_spend / t.total_conversions_meta : 0;
   t.avg_cpc  = (t.total_clicks || 0) > 0 ? t.total_spend / t.total_clicks : 0;
   t.avg_ctr  = (t.total_impressions || 0) > 0 ? (t.total_clicks / t.total_impressions * 100) : 0;
-  t.avg_cvr  = (t.total_clicks || 0) > 0 ? (totalCV / t.total_clicks * 100) : 0;
+  t.avg_cvr  = (t.total_clicks || 0) > 0 ? ((t.total_conversions_meta || 0) / t.total_clicks * 100) : 0;
   return t;
 };
 

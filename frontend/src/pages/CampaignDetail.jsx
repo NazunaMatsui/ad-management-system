@@ -339,11 +339,10 @@ const calcMonthTotals = (mRows) => {
     acc.conversions_booking += Number(row.conversions_booking || 0);
     return acc;
   }, { spend:0, impressions:0, clicks:0, conversions_meta:0, conversions_booking:0 });
-  const cv = t.conversions_meta + t.conversions_booking;
   t.cpa = t.conversions_meta > 0 ? t.spend / t.conversions_meta : 0;
   t.cpc = t.clicks > 0 ? t.spend / t.clicks     : 0;
   t.ctr = t.impressions > 0 ? (t.clicks / t.impressions * 100) : 0;
-  t.cvr = t.clicks > 0 ? (cv / t.clicks * 100) : 0;
+  t.cvr = t.clicks > 0 ? (t.conversions_meta / t.clicks * 100) : 0;
   return t;
 };
 
@@ -406,13 +405,12 @@ const CampaignDetail = () => {
         });
         // CPA/CPC/CTR/CVR を再計算
         rows = Object.values(dateMap).map(d => {
-          const cv = d.conversions_meta + d.conversions_booking;
           return {
             ...d,
             cpa: d.conversions_meta > 0 ? d.spend / d.conversions_meta : 0,
             cpc: d.clicks > 0 ? d.spend / d.clicks : 0,
             ctr: d.impressions > 0 ? (d.clicks / d.impressions * 100) : 0,
-            cvr: d.clicks > 0 ? (cv / d.clicks * 100) : 0,
+            cvr: d.clicks > 0 ? (d.conversions_meta / d.clicks * 100) : 0,
           };
         });
       }
@@ -461,11 +459,10 @@ const CampaignDetail = () => {
     acc.conversions_booking += Number(row.conversions_booking || 0);
     return acc;
   }, { spend: 0, impressions: 0, clicks: 0, conversions_meta: 0, conversions_booking: 0 });
-  const totalCV = totals.conversions_meta + totals.conversions_booking;
   totals.cpa = totals.conversions_meta > 0 ? totals.spend / totals.conversions_meta : 0;
   totals.cpc = totals.clicks  > 0 ? totals.spend / totals.clicks     : 0;
   totals.ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions * 100) : 0;
-  totals.cvr = totals.clicks  > 0 ? (totalCV / totals.clicks * 100)  : 0;
+  totals.cvr = totals.clicks  > 0 ? (totals.conversions_meta / totals.clicks * 100)  : 0;
 
   const st = STATUS[campaign?.status] || STATUS.active;
   const cmk = currentMonthKey();
