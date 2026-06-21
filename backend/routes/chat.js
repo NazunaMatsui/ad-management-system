@@ -35,8 +35,61 @@ async function getAdContext() {
   return { campaigns: campaigns.rows, memos: recentMemos.rows };
 }
 
+// セッション一覧取得
+router.get('/sessions', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, title, created_at, updated_at
+       FROM chat_sessions
+       WHERE user_id = $1
+       ORDER BY updated_at DESC
+       LIMIT 50`,
+      [req.user.user_id]
+    );
+    res.json({ sessions: result.rows });
+  } catch (error) {
+    console.error('セッション取得エラー:', error);
+    res.status(500).json({ error: 'セッション取得に失敗しました' });
+  }
+});
+
+// セッションのメッセージ取得
+router.get('/sessions/:sessionId', async (req, res) => {
+  try {
+    const session = await pool.query(
+      'SELECT * FROM chat_sessions WHERE id = $1 AND user_id = $2',
+      [req.params.sessionId, req.user.user_id]
+    );
+    if (session.rows.length === 0) {
+      return res.status(404).json({ error: 'セッションが見つかりません' });
+    }
+    const messages = await pool.query(
+      'SELECT role, content, created_at FROM chat_messages WHERE session_id = $1 ORDER BY created_at ASC',
+      [req.params.sessionId]
+    );
+    res.json({ session: session.rows[0], messages: messages.rows });
+  } catch (error) {
+    console.error('メッセージ取得エラー:', error);
+    res.status(500).json({ error: 'メッセージ取得に失敗しました' });
+  }
+});
+
+// セッション削除
+router.delete('/sessions/:sessionId', async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM chat_sessions WHERE id = $1 AND user_id = $2',
+      [req.params.sessionId, req.user.user_id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: '削除に失敗しました' });
+  }
+});
+
+// メッセージ送信
 router.post('/', async (req, res) => {
-  const { messages } = req.body;
+  const { messages, sessionId } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messagesが必要です' });
@@ -57,7 +110,18 @@ ${memos.length > 0
   ? memos.map(m => `- [${m.date}] ${m.campaign_name}: ${m.memo_content}`).join('\n')
   : 'メモなし'}
 
-データをもとに、費用対効果・改善点・気づきなどを日本語で簡潔に答えてください。`;
+## 回答スタイルのルール
+- 絵文字を積極的に使って視覚的にわかりやすくする（例：📊 📈 💡 ✅ ⚠️ 🎯 💰 🔍）
+- 数値や重要な情報は**太字**で強調する
+- 箇条書きを活用して読みやすくする
+- 見出しで内容を整理する（例：## 📊 分析結果）
+- ポジティブな点と改善点を明確に分けて伝える
+- 専門用語は使いすぎず、わかりやすい言葉で説明する
+- 最後に簡潔なアクション提案を添える
+- 日本語で回答する
+- **回答は必ず完結させる。途中で終わらず最後まで書く**
+- 1回の回答は500文字以内を目安にコンパクトにまとめる
+- 詳細が必要なら「続きを教えてください」と促す`;
 
     const conversationMessages = [
       { role: 'system', content: systemPrompt },
@@ -69,11 +133,50 @@ ${memos.length > 0
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: conversationMessages,
-      max_tokens: 1024,
+      max_tokens: 2048,
     });
 
     const text = response.choices[0]?.message?.content || '';
-    res.json({ message: text });
+
+    // セッションの保存
+    const userMessage = messages[messages.length - 1];
+    let currentSessionId = sessionId;
+
+    if (!currentSessionId) {
+      // 新規セッション作成（最初のユーザーメッセージをタイトルに）
+      const title = userMessage.content.slice(0, 50) + (userMessage.content.length > 50 ? '...' : '');
+      const newSession = await pool.query(
+        'INSERT INTO chat_sessions (user_id, title) VALUES ($1, $2) RETURNING id',
+        [req.user.user_id, title]
+      );
+      currentSessionId = newSession.rows[0].id;
+
+      // 初回のみ既存メッセージ全件を保存（assistant初期メッセージ含む）
+      for (const msg of messages.slice(0, -1)) {
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          await pool.query(
+            'INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3)',
+            [currentSessionId, msg.role, msg.content]
+          );
+        }
+      }
+    }
+
+    // 今回のユーザーメッセージとAI返答を保存
+    await pool.query(
+      'INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3)',
+      [currentSessionId, 'user', userMessage.content]
+    );
+    await pool.query(
+      'INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3)',
+      [currentSessionId, 'assistant', text]
+    );
+    await pool.query(
+      'UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1',
+      [currentSessionId]
+    );
+
+    res.json({ message: text, sessionId: currentSessionId });
   } catch (error) {
     console.error('チャットエラー:', error);
     res.status(500).json({ error: 'AIとの通信に失敗しました' });
