@@ -145,6 +145,12 @@ const AiChat = ({ onClose }) => {
       if (!sessionId && newSid) {
         setSessionId(newSid);
         localStorage.setItem(LS_SESSION, String(newSid));
+        // 履歴リストに新しいセッションをすぐ追加
+        const title = text.slice(0, 50) + (text.length > 50 ? '...' : '');
+        setSessions(prev => [{ id: newSid, title, updated_at: new Date().toISOString() }, ...prev]);
+      } else if (sessionId) {
+        // 既存セッションのupdated_atを更新
+        setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, updated_at: new Date().toISOString() } : s));
       }
 
       if (res.data.usage) {

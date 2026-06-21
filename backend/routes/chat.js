@@ -75,7 +75,7 @@ router.get('/sessions', async (req, res) => {
        WHERE user_id = $1
        ORDER BY updated_at DESC
        LIMIT 50`,
-      [req.user.user_id]
+      [req.user.userId]
     );
     res.json({ sessions: result.rows });
   } catch (error) {
@@ -89,7 +89,7 @@ router.get('/sessions/:sessionId', async (req, res) => {
   try {
     const session = await pool.query(
       'SELECT * FROM chat_sessions WHERE id = $1 AND user_id = $2',
-      [req.params.sessionId, req.user.user_id]
+      [req.params.sessionId, req.user.userId]
     );
     if (session.rows.length === 0) {
       return res.status(404).json({ error: 'セッションが見つかりません' });
@@ -110,7 +110,7 @@ router.delete('/sessions/:sessionId', async (req, res) => {
   try {
     await pool.query(
       'DELETE FROM chat_sessions WHERE id = $1 AND user_id = $2',
-      [req.params.sessionId, req.user.user_id]
+      [req.params.sessionId, req.user.userId]
     );
     res.json({ success: true });
   } catch (error) {
@@ -128,7 +128,7 @@ router.post('/', async (req, res) => {
 
   try {
     const { campaigns, memos } = await getAdContext();
-    const pastConversations = await getPastConversations(req.user.user_id, sessionId);
+    const pastConversations = await getPastConversations(req.user.userId, sessionId);
 
     const systemPrompt = `あなたは広告運用の分析アシスタントです。以下の最新データをもとにユーザーの質問に答えてください。
 ${pastConversations ? `\n## 過去の会話履歴（参考）\n以下はユーザーとの過去の会話です。「前回〜」「さっきの〜」などの発言はこの履歴を参照してください。\n${pastConversations}\n` : ''}
@@ -180,7 +180,7 @@ ${memos.length > 0
       const title = userMessage.content.slice(0, 50) + (userMessage.content.length > 50 ? '...' : '');
       const newSession = await pool.query(
         'INSERT INTO chat_sessions (user_id, title) VALUES ($1, $2) RETURNING id',
-        [req.user.user_id, title]
+        [req.user.userId, title]
       );
       currentSessionId = newSession.rows[0].id;
 
