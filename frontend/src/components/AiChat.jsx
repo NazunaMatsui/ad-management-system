@@ -111,7 +111,10 @@ const AiChat = ({ onClose }) => {
       const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }));
       const res = await chatAPI.send(apiMessages, sessionId);
       setMessages(prev => [...prev, { role: 'assistant', content: res.data.message }]);
-      if (!sessionId) setSessionId(res.data.sessionId);
+      const newSessionId = sessionId || res.data.sessionId;
+      if (!sessionId) setSessionId(newSessionId);
+      // 即座にlocalStorageへ保存（useEffectの非同期を待たない）
+      if (newSessionId) localStorage.setItem('ai_chat_session_id', String(newSessionId));
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'エラーが発生しました。もう一度お試しください。' }]);
     } finally {
