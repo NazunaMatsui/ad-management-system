@@ -198,9 +198,12 @@ router.delete('/users/:id', adminOnly, async (req, res) => {
     return res.status(400).json({ error: '自分自身は削除できません' });
   }
   try {
+    await pool.query('DELETE FROM chat_sessions WHERE user_id = $1', [req.params.id]);
+    await pool.query('DELETE FROM operation_memos WHERE created_by = $1', [req.params.id]);
     await pool.query('DELETE FROM users WHERE user_id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
+    console.error('ユーザー削除エラー:', err);
     res.status(500).json({ error: '削除に失敗しました' });
   }
 });
