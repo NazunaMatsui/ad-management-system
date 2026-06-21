@@ -150,7 +150,7 @@ export default function Campaigns() {
         <div style={{ display: 'grid', gap: '0.75rem' }}>
           {campaigns.map((c, i) => {
             const st = STATUS[c.status] || STATUS.active;
-            const color = DOT_COLORS[i % DOT_COLORS.length];
+            const color = st.dot;
             const s = summaries[c.campaign_id];
 
             return (
