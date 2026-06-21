@@ -8,15 +8,18 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ローカルストレージからユーザー情報を復元
-    const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
-    
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    }
-    
-    setLoading(false);
+    if (!token) { setLoading(false); return; }
+
+    // トークンでサーバーから実際のユーザー情報を取得
+    authAPI.me(token).then(res => {
+      setUser(res.data);
+      localStorage.setItem('user', JSON.stringify(res.data));
+    }).catch(() => {
+      // トークンが無効なら強制ログアウト
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }).finally(() => setLoading(false));
   }, []);
 
   const login = async (email, password) => {

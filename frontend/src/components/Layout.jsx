@@ -151,6 +151,38 @@ const Layout = ({ children }) => {
             );
           })}
 
+          {/* 管理者メニュー */}
+          {user?.role === 'owner' && (
+            <div style={{ marginTop: '0.5rem' }}>
+              {[{
+                name: 'メンバー管理', path: '/admin/users',
+                grad: ['linear-gradient(135deg,#f59e0b,#f97316)', 'linear-gradient(135deg,#fcd34d,#fdba74)'],
+                svgPath: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>
+              }].map(item => {
+                const active = isActive(item.path);
+                return (
+                  <Link key={item.path} to={item.path}
+                    style={linkStyle(active)}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.backgroundColor = 'var(--bg-hover)'; }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: '26px', height: '26px', borderRadius: '7px',
+                      background: active ? item.grad[0] : item.grad[1],
+                      flexShrink: 0, boxShadow: active ? '0 2px 6px rgba(0,0,0,0.15)' : 'none'
+                    }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        {item.svgPath}
+                      </svg>
+                    </span>
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
           {/* キャンペーンセクション */}
           <div style={{ marginTop: '1.25rem' }}>
             <button onClick={() => setCampaignsOpen(o => !o)} style={{
@@ -228,19 +260,30 @@ const Layout = ({ children }) => {
 
         {/* ユーザー */}
         <div style={{ padding: '0.875rem', borderTop: '1px solid var(--border-color)', backgroundColor: '#f8fafc' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.625rem' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.625rem',
+            padding: '0.4rem 0.5rem', borderRadius: '8px',
+          }}>
             <div style={{
               width: '30px', height: '30px', borderRadius: '50%',
               background: 'linear-gradient(135deg,#3b82f6,#6366f1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'white', fontSize: '0.8rem', fontWeight: '700', flexShrink: 0
             }}>
-              {user?.username?.[0]?.toUpperCase()}
+              {user?.username?.[0]}
             </div>
-            <div style={{ overflow: 'hidden' }}>
+            <div style={{ overflow: 'hidden', flex: 1 }}>
               <div style={{ fontSize: '0.82rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.username}</div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</div>
             </div>
+            <Link to="/account" style={{ textDecoration: 'none', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '6px', transition: 'background 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#e2e8f0'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </Link>
           </div>
           <button onClick={handleLogout} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', padding: '0.4rem' }}>
             <LogOut size={13} /> ログアウト

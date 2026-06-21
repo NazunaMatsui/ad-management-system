@@ -129,18 +129,6 @@ const Login = () => {
           </button>
         </form>
 
-        <div style={{ 
-          marginTop: '1.5rem', 
-          paddingTop: '1.5rem',
-          borderTop: '1px solid var(--border-color)',
-          textAlign: 'center'
-        }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            デフォルトログイン:<br />
-            email: admin@example.com<br />
-            password: admin123
-          </p>
-        </div>
       </div>
     </div>
   );

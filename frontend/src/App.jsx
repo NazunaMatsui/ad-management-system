@@ -10,6 +10,8 @@ import Campaigns from './pages/Campaigns';
 import DataEntry from './pages/DataEntry';
 import Memos from './pages/Memos';
 import Creatives from './pages/Creatives';
+import Account from './pages/Account';
+import AdminUsers from './pages/AdminUsers';
 import './styles/globals.css';
 
 // 認証が必要なルートのラッパー
@@ -109,6 +111,28 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <Creatives />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/account"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Account />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <AdminUsers />
             </Layout>
           </ProtectedRoute>
         }

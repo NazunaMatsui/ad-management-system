@@ -39,7 +39,8 @@ api.interceptors.response.use(
 // 認証API
 export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
-  register: (userData) => api.post('/auth/register', userData)
+  register: (userData) => api.post('/auth/register', userData),
+  me: (token) => api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } }),
 };
 
 // キャンペーンAPI

@@ -70,7 +70,7 @@ router.post('/register', [
   body('username').notEmpty().withMessage('ユーザー名を入力してください'),
   body('email').isEmail().withMessage('有効なメールアドレスを入力してください'),
   body('password').isLength({ min: 6 }).withMessage('パスワードは6文字以上で入力してください'),
-  body('role').isIn(['admin', 'viewer']).withMessage('権限が不正です')
+  body('role').isIn(['owner', 'admin']).withMessage('権限が不正です')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -99,6 +99,94 @@ router.post('/register', [
       return res.status(400).json({ error: 'このメールアドレスまたはユーザー名は既に使用されています' });
     }
     console.error('ユーザー登録エラー:', error);
+    res.status(500).json({ error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 現在のユーザー情報取得
+router.get('/me', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: '認証が必要です' });
+  try {
+    const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+    const result = await pool.query(
+      'SELECT user_id, username, email, role FROM users WHERE user_id = $1',
+      [decoded.userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'ユーザーが見つかりません' });
+    const u = result.rows[0];
+    res.json({ userId: u.user_id, username: u.username, email: u.email, role: u.role });
+  } catch {
+    return res.status(401).json({ error: '無効なトークンです' });
+  }
+});
+
+// ─── 管理者専用: ユーザー一覧 ───────────────────────────────────────────────
+const adminOnly = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: '認証が必要です' });
+  try {
+    const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== 'owner') return res.status(403).json({ error: 'オーナー権限が必要です' });
+    req.userId = decoded.userId;
+    next();
+  } catch {
+    return res.status(401).json({ error: '無効なトークンです' });
+  }
+};
+
+router.get('/users', adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT user_id, username, email, role, created_at FROM users ORDER BY created_at DESC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'サーバーエラーが発生しました' });
+  }
+});
+
+router.delete('/users/:id', adminOnly, async (req, res) => {
+  if (String(req.params.id) === String(req.userId)) {
+    return res.status(400).json({ error: '自分自身は削除できません' });
+  }
+  try {
+    await pool.query('DELETE FROM users WHERE user_id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '削除に失敗しました' });
+  }
+});
+
+// パスワード変更
+router.post('/change-password', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: '認証が必要です' });
+  let userId;
+  try {
+    const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+    userId = decoded.userId;
+  } catch {
+    return res.status(401).json({ error: '無効なトークンです' });
+  }
+
+  const { current_password, new_password } = req.body;
+  if (!current_password || !new_password) return res.status(400).json({ error: '入力が不正です' });
+  if (new_password.length < 6) return res.status(400).json({ error: 'パスワードは6文字以上で入力してください' });
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE user_id = $1', [userId]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: 'ユーザーが見つかりません' });
+
+    const valid = await bcrypt.compare(current_password, user.password_hash);
+    if (!valid) return res.status(400).json({ error: '現在のパスワードが間違っています' });
+
+    const hash = await bcrypt.hash(new_password, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [hash, userId]);
+    res.json({ message: 'パスワードを変更しました' });
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'サーバーエラーが発生しました' });
   }
 });

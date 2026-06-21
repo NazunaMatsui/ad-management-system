@@ -463,6 +463,7 @@ const CampaignDetail = () => {
   totals.cpc = totals.clicks  > 0 ? totals.spend / totals.clicks     : 0;
   totals.ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions * 100) : 0;
   totals.cvr = totals.clicks  > 0 ? (totals.conversions_meta / totals.clicks * 100)  : 0;
+  const totalCV = totals.conversions_meta + totals.conversions_booking;
 
   const st = STATUS[campaign?.status] || STATUS.active;
   const cmk = currentMonthKey();
