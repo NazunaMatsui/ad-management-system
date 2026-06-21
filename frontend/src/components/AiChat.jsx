@@ -22,29 +22,10 @@ const AiChat = ({ onClose }) => {
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // 起動時にlocalStorageから即座に復元（DBが遅くても表示できる）
+  // 起動時は常に新規会話（過去の会話は「履歴」から選択）
   useEffect(() => {
-    const savedId = localStorage.getItem(LS_SESSION);
-    const savedMsgs = localStorage.getItem(LS_MESSAGES);
-
-    if (savedMsgs) {
-      try {
-        const msgs = JSON.parse(savedMsgs);
-        if (msgs.length > 0) setMessages(msgs);
-      } catch {}
-    }
-
-    if (savedId) {
-      setSessionId(Number(savedId));
-      // DBからも最新データを取得して上書き
-      chatAPI.getSession(savedId).then(res => {
-        const msgs = res.data.messages.map(m => ({ role: m.role, content: m.content }));
-        if (msgs.length > 0) {
-          setMessages(msgs);
-          localStorage.setItem(LS_MESSAGES, JSON.stringify(msgs));
-        }
-      }).catch(() => {});
-    }
+    localStorage.removeItem(LS_SESSION);
+    localStorage.removeItem(LS_MESSAGES);
   }, []);
 
   useEffect(() => {
