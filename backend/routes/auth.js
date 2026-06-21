@@ -122,6 +122,8 @@ router.get('/me', async (req, res) => {
 });
 
 // ─── 管理者専用: ユーザー一覧 ───────────────────────────────────────────────
+const PRIMARY_OWNER_EMAIL = 'n-matsui@nexmesh.jp';
+
 const adminOnly = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: '認証が必要です' });
@@ -129,6 +131,7 @@ const adminOnly = (req, res, next) => {
     const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
     if (decoded.role !== 'owner') return res.status(403).json({ error: 'オーナー権限が必要です' });
     req.userId = decoded.userId;
+    req.userEmail = decoded.email;
     next();
   } catch {
     return res.status(401).json({ error: '無効なトークンです' });
@@ -147,6 +150,9 @@ router.get('/users', adminOnly, async (req, res) => {
 });
 
 router.patch('/users/:id/role', adminOnly, async (req, res) => {
+  if (req.userEmail !== PRIMARY_OWNER_EMAIL) {
+    return res.status(403).json({ error: 'この操作は許可されていません' });
+  }
   if (String(req.params.id) === String(req.userId)) {
     return res.status(400).json({ error: '自分自身の権限は変更できません' });
   }
@@ -163,6 +169,9 @@ router.patch('/users/:id/role', adminOnly, async (req, res) => {
 });
 
 router.delete('/users/:id', adminOnly, async (req, res) => {
+  if (req.userEmail !== PRIMARY_OWNER_EMAIL) {
+    return res.status(403).json({ error: 'この操作は許可されていません' });
+  }
   if (String(req.params.id) === String(req.userId)) {
     return res.status(400).json({ error: '自分自身は削除できません' });
   }

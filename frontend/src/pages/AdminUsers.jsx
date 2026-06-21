@@ -10,6 +10,7 @@ function genPassword() {
 
 export default function AdminUsers() {
   const { user } = useAuth();
+  const isPrimaryOwner = user?.email === 'n-matsui@nexmesh.jp';
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +152,7 @@ export default function AdminUsers() {
                   }}>
                     オーナー
                   </span>
-                ) : (
+                ) : isPrimaryOwner ? (
                   <select
                     value={u.role}
                     onChange={e => handleRoleChange(u.user_id, e.target.value)}
@@ -166,8 +167,17 @@ export default function AdminUsers() {
                     <option value="admin">管理者</option>
                     <option value="owner">オーナー</option>
                   </select>
+                ) : (
+                  <span style={{
+                    fontSize: '0.7rem', fontWeight: '600', padding: '0.15rem 0.55rem',
+                    borderRadius: '99px', flexShrink: 0,
+                    backgroundColor: u.role === 'owner' ? '#eff6ff' : '#f0fdf4',
+                    color: u.role === 'owner' ? '#1d4ed8' : '#166534',
+                  }}>
+                    {u.role === 'owner' ? 'オーナー' : '管理者'}
+                  </span>
                 )}
-                {u.user_id !== user?.userId && u.role !== 'owner' && (
+                {isPrimaryOwner && u.user_id !== user?.userId && u.role !== 'owner' && (
                   <button
                     onClick={() => handleDelete(u.user_id, u.username)}
                     style={{
