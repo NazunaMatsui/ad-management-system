@@ -259,7 +259,17 @@ export default function AdminUsers() {
             <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '600', color: '#64748b', marginBottom: '0.375rem' }}>権限</label>
             <select
               value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-              style={{ ...inputStyle, width: 'auto', minWidth: '120px' }}
+              style={{
+                ...inputStyle,
+                width: 'auto',
+                minWidth: '120px',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 0.5rem center',
+                paddingRight: '1.75rem',
+              }}
             >
               <option value="admin">管理者</option>
               <option value="owner">オーナー</option>
