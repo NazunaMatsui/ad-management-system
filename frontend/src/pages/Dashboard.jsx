@@ -74,8 +74,13 @@ const Dashboard = () => {
         metricsAPI.get(params)
       ]);
 
-      // キャンペーン別内訳を保存（ホバー表示用）
-      setCampaignBreakdown(summaryRes.data);
+      // キャンペーン別内訳を保存（ホバー表示用）— CPAをキャンペーンごとに算出
+      setCampaignBreakdown(summaryRes.data.map(item => ({
+        ...item,
+        avg_cpa: (parseInt(item.total_conversions_meta || 0)) > 0
+          ? parseFloat(item.total_spend || 0) / parseInt(item.total_conversions_meta)
+          : 0,
+      })));
 
       // サマリーデータの集計
       const totalSummary = summaryRes.data.reduce((acc, item) => ({
