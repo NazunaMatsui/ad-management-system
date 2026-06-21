@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const pool = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 async function getAdContext() {
   const campaigns = await pool.query(`
@@ -59,23 +59,20 @@ ${memos.length > 0
 
 データをもとに、費用対効果・改善点・気づきなどを日本語で簡潔に答えてください。`;
 
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: systemPrompt,
+    const conversationMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({ role: m.role, content: m.content })),
+    ];
+
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: conversationMessages,
+      max_tokens: 1024,
     });
 
-    // Gemini形式に変換（user/modelの交互）
-    const history = messages.slice(0, -1).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
-
-    const lastMessage = messages[messages.length - 1];
-
-    const chat = model.startChat({ history });
-    const result = await chat.sendMessage(lastMessage.content);
-    const text = result.response.text();
-
+    const text = response.choices[0]?.message?.content || '';
     res.json({ message: text });
   } catch (error) {
     console.error('チャットエラー:', error);

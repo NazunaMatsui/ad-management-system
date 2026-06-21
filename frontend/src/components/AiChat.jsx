@@ -13,6 +13,13 @@ const AiChat = ({ onClose }) => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const textareaRef = useRef(null);
+
+  const adjustHeight = (el) => {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  };
+
   const send = async () => {
     const text = input.trim();
     if (!text || loading) return;
@@ -20,6 +27,10 @@ const AiChat = ({ onClose }) => {
     const newMessages = [...messages, { role: 'user', content: text }];
     setMessages(newMessages);
     setInput('');
+    if (textareaRef.current) {
+      textareaRef.current.value = '';
+      textareaRef.current.style.height = 'auto';
+    }
     setLoading(true);
 
     try {
@@ -34,7 +45,7 @@ const AiChat = ({ onClose }) => {
   };
 
   const handleKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       send();
     }
@@ -116,18 +127,22 @@ const AiChat = ({ onClose }) => {
         display: 'flex', gap: '8px', alignItems: 'flex-end'
       }}>
         <textarea
+          ref={textareaRef}
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={e => { setInput(e.target.value); adjustHeight(e.target); }}
           onKeyDown={handleKey}
-          placeholder="質問を入力... (Enterで送信)"
+          placeholder="質問を入力... (Shift+Enterで改行)"
           rows={1}
           style={{
-            flex: 1, resize: 'none', border: '1px solid #e2e8f0',
-            borderRadius: '10px', padding: '8px 12px',
-            fontSize: '0.82rem', outline: 'none',
-            fontFamily: 'inherit', lineHeight: '1.4',
-            maxHeight: '80px', overflowY: 'auto'
+            flex: 1, resize: 'none', border: '1.5px solid #e2e8f0',
+            borderRadius: '12px', padding: '10px 14px',
+            fontSize: '0.875rem', outline: 'none',
+            fontFamily: 'inherit', lineHeight: '1.6',
+            minHeight: '42px', maxHeight: '120px', overflowY: 'auto',
+            boxSizing: 'border-box', transition: 'border-color 0.2s',
           }}
+          onFocus={e => e.target.style.borderColor = '#3b82f6'}
+          onBlur={e => e.target.style.borderColor = '#e2e8f0'}
         />
         <button
           onClick={send}
