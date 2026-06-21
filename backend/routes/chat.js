@@ -64,18 +64,16 @@ ${memos.length > 0
       systemInstruction: systemPrompt,
     });
 
-    // Gemini形式に変換（最後のユーザーメッセージを取り出す）
-    // Geminiは履歴の先頭がuserである必要があるため、先頭のmodelメッセージを除外
-    const allButLast = messages.slice(0, -1).map(m => ({
+    // Gemini形式に変換（user/modelの交互）
+    const history = messages.slice(0, -1).map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-    const firstUserIndex = allButLast.findIndex(m => m.role === 'user');
-    const history = firstUserIndex >= 0 ? allButLast.slice(firstUserIndex) : [];
-    const lastMessage = messages[messages.length - 1].content;
+
+    const lastMessage = messages[messages.length - 1];
 
     const chat = model.startChat({ history });
-    const result = await chat.sendMessage(lastMessage);
+    const result = await chat.sendMessage(lastMessage.content);
     const text = result.response.text();
 
     res.json({ message: text });
