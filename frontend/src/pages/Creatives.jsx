@@ -389,7 +389,7 @@ function TextTab() {
   const [storeFilter, setStoreFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', headline: '', body_text: '', memo: '', tags: '', store: '' });
+  const [form, setForm] = useState({ name: '', headline: '', headline_2: '', headline_3: '', headline_4: '', headline_5: '', body_text: '', memo: '', tags: '', store: '' });
   const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -415,7 +415,7 @@ function TextTab() {
 
   const openEdit = (item) => {
     setEditing(item);
-    setForm({ name: item.name, headline: item.headline || '', body_text: item.body_text || '', memo: item.memo || '', tags: item.tags || '', store: item.store || '' });
+    setForm({ name: item.name, headline: item.headline || '', headline_2: item.headline_2 || '', headline_3: item.headline_3 || '', headline_4: item.headline_4 || '', headline_5: item.headline_5 || '', body_text: item.body_text || '', memo: item.memo || '', tags: item.tags || '', store: item.store || '' });
     setShowForm(true);
   };
 
@@ -488,10 +488,17 @@ function TextTab() {
                 </div>
                 {expanded && (
                   <div style={{ padding: '0 18px 16px', borderTop: '1px solid #f1f5f9' }}>
-                    {item.headline && (
+                    {[item.headline, item.headline_2, item.headline_3, item.headline_4, item.headline_5].some(Boolean) && (
                       <div style={{ marginTop: '12px' }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>見出し</div>
-                        <div style={{ fontSize: '0.875rem', color: '#1e293b', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px' }}>{item.headline}</div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>見出し</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {[item.headline, item.headline_2, item.headline_3, item.headline_4, item.headline_5].map((h, i) => h ? (
+                            <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#6366f1', background: '#eef2ff', padding: '1px 7px', borderRadius: '99px', flexShrink: 0 }}>見出し{i + 1}</span>
+                              <div style={{ fontSize: '0.875rem', color: '#1e293b', background: '#f8fafc', padding: '6px 10px', borderRadius: '6px', flex: 1 }}>{h}</div>
+                            </div>
+                          ) : null)}
+                        </div>
                       </div>
                     )}
                     {item.body_text && (
@@ -529,9 +536,20 @@ function TextTab() {
               <label style={labelStyle}>店舗 *</label>
               <StoreSelect value={form.store} onChange={v => setForm(f => ({ ...f, store: v }))} required />
             </div>
-            <div style={{ marginBottom: '14px' }}>
-              <label style={labelStyle}>見出し</label>
-              <input value={form.headline} onChange={e => setForm(f => ({ ...f, headline: e.target.value }))} style={inputStyle} placeholder="例：【限定】美容鍼で本格ケア ¥1,980〜" />
+            <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#374151', marginBottom: '10px' }}>見出し（最大5つ）</div>
+              {[
+                { key: 'headline',   label: '見出し1', placeholder: '例：【限定】美容鍼で本格ケア ¥1,980〜' },
+                { key: 'headline_2', label: '見出し2', placeholder: '' },
+                { key: 'headline_3', label: '見出し3', placeholder: '' },
+                { key: 'headline_4', label: '見出し4', placeholder: '' },
+                { key: 'headline_5', label: '見出し5', placeholder: '' },
+              ].map(({ key, label, placeholder }) => (
+                <div key={key} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#6366f1', background: '#eef2ff', padding: '2px 8px', borderRadius: '99px', whiteSpace: 'nowrap' }}>{label}</span>
+                  <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.82rem' }} placeholder={placeholder} />
+                </div>
+              ))}
             </div>
             <div style={{ marginBottom: '14px' }}>
               <label style={labelStyle}>本文</label>

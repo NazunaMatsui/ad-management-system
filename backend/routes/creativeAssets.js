@@ -175,11 +175,14 @@ router.get('/texts', async (req, res) => {
 
 router.post('/texts', async (req, res) => {
   try {
-    const { name, headline, body_text, memo, tags, store } = req.body;
+    const { name, headline, headline_2, headline_3, headline_4, headline_5, body_text, memo, tags, store } = req.body;
     if (!name) return res.status(400).json({ error: '名前は必須です' });
     const result = await pool.query(
-      'INSERT INTO creative_texts (name, headline, body_text, memo, tags, store) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-      [name, headline || null, body_text || null, memo || null, tags || null, store || null]
+      `INSERT INTO creative_texts
+        (name, headline, headline_2, headline_3, headline_4, headline_5, body_text, memo, tags, store)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [name, headline || null, headline_2 || null, headline_3 || null, headline_4 || null, headline_5 || null,
+       body_text || null, memo || null, tags || null, store || null]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -189,10 +192,14 @@ router.post('/texts', async (req, res) => {
 
 router.put('/texts/:id', async (req, res) => {
   try {
-    const { name, headline, body_text, memo, tags, store } = req.body;
+    const { name, headline, headline_2, headline_3, headline_4, headline_5, body_text, memo, tags, store } = req.body;
     const result = await pool.query(
-      'UPDATE creative_texts SET name=$1,headline=$2,body_text=$3,memo=$4,tags=$5,store=$6,updated_at=NOW() WHERE id=$7 RETURNING *',
-      [name, headline || null, body_text || null, memo || null, tags || null, store || null, req.params.id]
+      `UPDATE creative_texts SET
+        name=$1, headline=$2, headline_2=$3, headline_3=$4, headline_4=$5, headline_5=$6,
+        body_text=$7, memo=$8, tags=$9, store=$10, updated_at=NOW()
+       WHERE id=$11 RETURNING *`,
+      [name, headline || null, headline_2 || null, headline_3 || null, headline_4 || null, headline_5 || null,
+       body_text || null, memo || null, tags || null, store || null, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {
