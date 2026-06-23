@@ -53,7 +53,7 @@ const Layout = ({ children }) => {
 
   useEffect(() => {
     campaignAPI.getAll().then(res => setCampaigns(res.data)).catch(() => {});
-  }, []);
+  }, [location.pathname]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
