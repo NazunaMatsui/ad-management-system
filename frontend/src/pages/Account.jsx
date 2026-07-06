@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { useAuth } from '../context/AuthContext';
@@ -12,7 +12,10 @@ export default function Account() {
   const [emailMsg, setEmailMsg] = useState(null);
   const [loading, setLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState(() => user?.avatar || null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  useEffect(() => {
+    if (user?.avatar) setAvatarPreview(user.avatar);
+  }, [user?.avatar]);
   const [avatarHover, setAvatarHover] = useState(false);
   const [cropSrc, setCropSrc] = useState(null);
   const [crop, setCrop] = useState();

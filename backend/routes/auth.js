@@ -55,7 +55,8 @@ router.post('/login', [
         userId: user.user_id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        avatar: user.avatar || null
       }
     });
 
