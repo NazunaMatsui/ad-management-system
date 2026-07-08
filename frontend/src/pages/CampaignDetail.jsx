@@ -723,9 +723,16 @@ const CampaignDetail = () => {
                       <td style={{ position: 'sticky', left: 0, backgroundColor: 'var(--bg-secondary)', zIndex: 1, fontWeight: '500', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                         {fmtDate(row.date)}
                       </td>
-                      {METRICS.map(m => (
-                        <td key={m.key} style={{ whiteSpace: 'nowrap' }}>{m.format(row[m.key])}</td>
-                      ))}
+                      {METRICS.map(m => {
+                        const val = row[m.key];
+                        const isZeroCV = m.key === 'conversions_meta' && Number(val) === 0;
+                        return (
+                          <td key={m.key} style={{ whiteSpace: 'nowrap', position: 'relative' }}
+                            title={isZeroCV ? 'CV数: 0（Metaのアトリビューション再計算により0件）' : undefined}>
+                            {isZeroCV ? <span style={{ color: 'var(--text-secondary)', cursor: 'default', textDecoration: 'underline dotted' }}>0</span> : m.format(val)}
+                          </td>
+                        );
+                      })}
                       {!isAllCampaigns && (
                         <td style={{ padding: '0.5rem 0.75rem' }}>
                           <MemoCell

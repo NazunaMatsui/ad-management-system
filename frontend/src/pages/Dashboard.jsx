@@ -149,10 +149,12 @@ const Dashboard = () => {
     return new Intl.NumberFormat('ja-JP').format(value || 0);
   };
 
-  const StatCard = ({ icon: Icon, label, value, subValue, accent, bg, breakdownKey, breakdownFormat, tooltipAlign = 'left' }) => {
+  const StatCard = ({ icon: Icon, label, value, subValue, accent, bg, breakdownKey, breakdownFormat, tooltipAlign = 'left', showZero = false }) => {
     const [hovered, setHovered] = useState(false);
-    const rows = campaignBreakdown.filter(r => parseFloat(r[breakdownKey] || 0) > 0);
-    const showTooltip = hovered && rows.length > 1;
+    const rows = showZero
+      ? campaignBreakdown
+      : campaignBreakdown.filter(r => parseFloat(r[breakdownKey] || 0) > 0);
+    const showTooltip = hovered && rows.length > 0;
 
     return (
       <div
@@ -200,20 +202,24 @@ const Dashboard = () => {
             <div style={{ fontSize: '0.68rem', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
               キャンペーン別内訳
             </div>
-            {rows.map(r => (
-              <div key={r.campaign_id} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '0.3rem 0', borderBottom: '1px solid #f8fafc',
-                gap: '0.5rem',
-              }}>
-                <span style={{ fontSize: '0.78rem', color: '#475569', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {r.campaign_name}
-                </span>
-                <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1e293b', flexShrink: 0 }}>
-                  {breakdownFormat(parseFloat(r[breakdownKey] || 0))}
-                </span>
-              </div>
-            ))}
+            {rows.map(r => {
+              const val = parseFloat(r[breakdownKey] || 0);
+              const isZero = val === 0;
+              return (
+                <div key={r.campaign_id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '0.3rem 0', borderBottom: '1px solid #f8fafc',
+                  gap: '0.5rem', opacity: isZero ? 0.5 : 1,
+                }}>
+                  <span style={{ fontSize: '0.78rem', color: '#475569', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {r.campaign_name}
+                  </span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: isZero ? '#94a3b8' : '#1e293b', flexShrink: 0 }}>
+                    {isZero ? '0件' : breakdownFormat(val)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -522,6 +528,7 @@ const Dashboard = () => {
               accent="#ef4444" bg="#fef2f2"
               breakdownKey="total_conversions_meta"
               breakdownFormat={v => `${Math.round(v).toLocaleString()}件`}
+              showZero={true}
               tooltipAlign="right" />
           </div>
 

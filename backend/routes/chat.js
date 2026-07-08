@@ -6,7 +6,7 @@ const { authenticateToken } = require('../middleware/auth');
 
 router.use(authenticateToken);
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 async function getPastConversations(userId, currentSessionId) {
   const sessions = await pool.query(

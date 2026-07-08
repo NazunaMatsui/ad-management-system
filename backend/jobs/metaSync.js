@@ -67,6 +67,7 @@ async function syncMetaData(startDate, endDate) {
       time_increment: 1,
       time_range: JSON.stringify({ since: startDate, until: endDate }),
       fields: 'campaign_id,campaign_name,objective,spend,impressions,clicks,actions,date_start',
+      action_attribution_windows: ['7d_click', '1d_view'],
       limit: 500,
     },
   });
@@ -138,7 +139,14 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// 毎朝9時に前日〜当日分を同期
+// N日前の日付文字列を返す（YYYY-MM-DD）
+function daysAgoStr(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+// 毎朝9時に過去7日間〜当日分を同期（Metaのアトリビューション再計算に対応）
 function startScheduler() {
   if (process.env.AUTO_FETCH_ENABLED !== 'true') {
     console.log('自動同期は無効です（AUTO_FETCH_ENABLED=false）');
@@ -147,11 +155,11 @@ function startScheduler() {
 
   // 毎日 09:00 JST（UTC+9 なので UTC 00:00）
   cron.schedule('0 0 * * *', async () => {
-    const yesterday = yesterdayStr();
+    const since = daysAgoStr(7);
     const today = todayStr();
-    console.log(`[自動同期] 開始: ${yesterday} 〜 ${today}`);
+    console.log(`[自動同期] 開始: ${since} 〜 ${today}（過去7日間、アトリビューション再計算対応）`);
     try {
-      const count = await syncMetaData(yesterday, today);
+      const count = await syncMetaData(since, today);
       console.log(`[自動同期] 完了: ${count}件`);
     } catch (err) {
       console.error('[自動同期] エラー:', err.message);
@@ -160,7 +168,7 @@ function startScheduler() {
     timezone: 'Asia/Tokyo',
   });
 
-  console.log('自動同期スケジューラー起動済み（毎日 09:00 JST）');
+  console.log('自動同期スケジューラー起動済み（毎日 09:00 JST、過去7日間）');
 }
 
 module.exports = { syncMetaData, startScheduler };
