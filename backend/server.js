@@ -21,6 +21,7 @@ const chatRoutes = require('./routes/chat');
 const creativeRoutes = require('./routes/creatives');
 const creativeAssetsRoutes = require('./routes/creativeAssets');
 const { startScheduler } = require('./jobs/metaSync');
+const { ensureBucket } = require('./config/supabase');
 
 // API エンドポイント
 app.use('/api/auth', authRoutes);
@@ -56,6 +57,7 @@ pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS temp_password TEXT`).catc
 // サーバー起動
 app.listen(PORT, () => {
   startScheduler();
+  ensureBucket().catch(e => console.warn('[Supabase] バケット初期化スキップ:', e.message));
   console.log(`🚀 サーバーがポート${PORT}で起動しました`);
   console.log(`📊 広告費管理システムAPI稼働中`);
   console.log(`🌐 http://localhost:${PORT}`);

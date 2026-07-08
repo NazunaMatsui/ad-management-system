@@ -5,19 +5,15 @@ const path = require('path');
 const fs = require('fs');
 const pool = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const { supabase, BUCKET } = require('../config/supabase');
 
 router.use(authenticateToken);
 
+// Supabase Storage が使えない場合のフォールバック: ローカルディスク
 const uploadsDir = path.join(__dirname, '..', 'uploads', 'creatives');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `media_${Date.now()}_${Math.random().toString(36).slice(2,6)}${ext}`);
-  },
-});
+const storage = multer.memoryStorage(); // メモリに一時保持してからSupabaseへ
 const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 },
@@ -33,10 +29,37 @@ const uploadFields = upload.fields([
   { name: 'media3', maxCount: 1 },
 ]);
 
-function deleteFile(url) {
+// ファイルをSupabase Storageにアップロードして公開URLを返す
+async function uploadToStorage(file) {
+  const ext = path.extname(file.originalname);
+  const filename = `media_${Date.now()}_${Math.random().toString(36).slice(2, 6)}${ext}`;
+
+  if (supabase) {
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(filename, file.buffer, { contentType: file.mimetype, upsert: false });
+    if (error) throw new Error(`Supabase upload failed: ${error.message}`);
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(filename);
+    return data.publicUrl;
+  }
+
+  // フォールバック: ローカルディスク
+  const localPath = path.join(uploadsDir, filename);
+  fs.writeFileSync(localPath, file.buffer);
+  return `/uploads/creatives/${filename}`;
+}
+
+// ファイルを削除（Supabase or ローカル）
+async function deleteFromStorage(url) {
   if (!url) return;
-  const p = path.join(__dirname, '..', url);
-  if (fs.existsSync(p)) fs.unlinkSync(p);
+  if (supabase && (url.startsWith('http://') || url.startsWith('https://'))) {
+    // Supabase公開URLからファイル名を抽出
+    const filename = url.split('/').pop();
+    await supabase.storage.from(BUCKET).remove([filename]);
+  } else if (url.startsWith('/uploads/')) {
+    const p = path.join(__dirname, '..', url);
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+  }
 }
 
 // ─── 画像/動画 ────────────────────────────────────────────────────────────────
@@ -70,10 +93,12 @@ router.post('/images', uploadFields, async (req, res) => {
     if (!f1) return res.status(400).json({ error: '1枚目の画像/動画は必須です' });
     const f2 = req.files?.media2?.[0];
     const f3 = req.files?.media3?.[0];
+
     const media_type = /^video\//.test(f1.mimetype) ? 'video' : 'image';
-    const url1 = `/uploads/creatives/${f1.filename}`;
-    const url2 = f2 ? `/uploads/creatives/${f2.filename}` : null;
-    const url3 = f3 ? `/uploads/creatives/${f3.filename}` : null;
+    const url1 = await uploadToStorage(f1);
+    const url2 = f2 ? await uploadToStorage(f2) : null;
+    const url3 = f3 ? await uploadToStorage(f3) : null;
+
     const result = await pool.query(
       `INSERT INTO creative_images
         (name, image_url, image_url_2, image_url_3, size_label_1, size_label_2, size_label_3, media_type, memo, tags, store)
@@ -85,7 +110,7 @@ router.post('/images', uploadFields, async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: '登録に失敗しました' });
+    res.status(500).json({ error: '登録に失敗しました: ' + err.message });
   }
 });
 
@@ -105,16 +130,15 @@ router.put('/images/:id', uploadFields, async (req, res) => {
     let media_type = row.media_type;
 
     if (f1) {
-      deleteFile(row.image_url);
-      url1 = `/uploads/creatives/${f1.filename}`;
+      await deleteFromStorage(row.image_url);
+      url1 = await uploadToStorage(f1);
       media_type = /^video\//.test(f1.mimetype) ? 'video' : 'image';
     }
-    if (f2) { deleteFile(row.image_url_2); url2 = `/uploads/creatives/${f2.filename}`; }
-    if (f3) { deleteFile(row.image_url_3); url3 = `/uploads/creatives/${f3.filename}`; }
+    if (f2) { await deleteFromStorage(row.image_url_2); url2 = await uploadToStorage(f2); }
+    if (f3) { await deleteFromStorage(row.image_url_3); url3 = await uploadToStorage(f3); }
 
-    // handle explicit clear of slot 2/3
-    if (req.body.clear2 === '1') { deleteFile(url2); url2 = null; }
-    if (req.body.clear3 === '1') { deleteFile(url3); url3 = null; }
+    if (req.body.clear2 === '1') { await deleteFromStorage(url2); url2 = null; }
+    if (req.body.clear3 === '1') { await deleteFromStorage(url3); url3 = null; }
 
     const result = await pool.query(
       `UPDATE creative_images SET
@@ -131,7 +155,7 @@ router.put('/images/:id', uploadFields, async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: '更新に失敗しました' });
+    res.status(500).json({ error: '更新に失敗しました: ' + err.message });
   }
 });
 
@@ -139,9 +163,9 @@ router.delete('/images/:id', async (req, res) => {
   try {
     const old = await pool.query('SELECT * FROM creative_images WHERE id=$1', [req.params.id]);
     if (old.rows[0]) {
-      deleteFile(old.rows[0].image_url);
-      deleteFile(old.rows[0].image_url_2);
-      deleteFile(old.rows[0].image_url_3);
+      await deleteFromStorage(old.rows[0].image_url);
+      await deleteFromStorage(old.rows[0].image_url_2);
+      await deleteFromStorage(old.rows[0].image_url_3);
     }
     await pool.query('DELETE FROM creative_images WHERE id=$1', [req.params.id]);
     res.json({ success: true });
