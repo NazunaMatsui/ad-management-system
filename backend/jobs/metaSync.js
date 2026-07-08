@@ -2,21 +2,69 @@ const cron = require('node-cron');
 const axios = require('axios');
 const pool = require('../config/database');
 
-// キャンペーン objective → Ads Manager「結果」に対応する action_type マッピング
-const OBJECTIVE_RESULT_ACTIONS = {
-  OUTCOME_LEADS:      ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_custom'],
-  OUTCOME_SALES:      ['purchase', 'offsite_conversion.fb_pixel_purchase', 'omni_purchase'],
-  OUTCOME_ENGAGEMENT: ['post_engagement'],
-  OUTCOME_TRAFFIC:    ['link_click'],
-  OUTCOME_AWARENESS:  ['reach'],
-  MESSAGES:           ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.messaging_first_reply'],
-  CONVERSIONS:        ['offsite_conversion.fb_pixel_purchase', 'purchase', 'lead', 'offsite_conversion.fb_pixel_custom'],
-  LEAD_GENERATION:    ['lead', 'onsite_conversion.lead_grouped'],
+// optimization_goal + custom_event_type → action_type マッピング
+// Ads Manager の「結果」列と一致させる
+const PIXEL_EVENT_ACTION_MAP = {
+  LEAD:                  'offsite_conversion.fb_pixel_lead',
+  PURCHASE:              'offsite_conversion.fb_pixel_purchase',
+  COMPLETE_REGISTRATION: 'offsite_conversion.fb_pixel_complete_registration',
+  ADD_TO_CART:           'offsite_conversion.fb_pixel_add_to_cart',
+  INITIATE_CHECKOUT:     'offsite_conversion.fb_pixel_initiate_checkout',
+  // カスタムイベント（SCHEDULE, CONTACTなど）は fb_pixel_custom
 };
 
-function extractResultConversions(objective, actions) {
-  const targetTypes = OBJECTIVE_RESULT_ACTIONS[objective] || [];
-  if (targetTypes.length === 0) return 0;
+// optimization_goal のうち「リードフォーム」系
+const LEAD_FORM_GOALS = new Set(['LEAD_GENERATION', 'QUALITY_LEAD']);
+
+function extractResultConversions(objective, actions, optimizationInfo) {
+  // ad set の最適化情報がある場合はそちらを優先
+  if (optimizationInfo) {
+    const { optimization_goal, promoted_object } = optimizationInfo;
+
+    // Metaリードフォーム最適化
+    if (LEAD_FORM_GOALS.has(optimization_goal)) {
+      return actions
+        .filter(a => a.action_type === 'lead' || a.action_type === 'onsite_conversion.lead_grouped')
+        .reduce((sum, a) => sum + parseInt(a.value || 0), 0);
+    }
+
+    // ピクセルコンバージョン最適化
+    if (optimization_goal === 'OFFSITE_CONVERSIONS' && promoted_object) {
+      const customEventType = promoted_object.custom_event_type;
+      const mappedActionType = PIXEL_EVENT_ACTION_MAP[customEventType];
+      if (mappedActionType) {
+        // 既知のピクセルイベント (LEAD, PURCHASEなど)
+        return actions
+          .filter(a => a.action_type === mappedActionType)
+          .reduce((sum, a) => sum + parseInt(a.value || 0), 0);
+      } else {
+        // SCHEDULE, CONTACTなどカスタムイベント → fb_pixel_custom
+        return actions
+          .filter(a => a.action_type === 'offsite_conversion.fb_pixel_custom')
+          .reduce((sum, a) => sum + parseInt(a.value || 0), 0);
+      }
+    }
+
+    // メッセージ最適化
+    if (optimization_goal === 'CONVERSATIONS') {
+      return actions
+        .filter(a => ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.messaging_first_reply'].includes(a.action_type))
+        .reduce((sum, a) => sum + parseInt(a.value || 0), 0);
+    }
+  }
+
+  // フォールバック: キャンペーン objective ベース
+  const OBJECTIVE_FALLBACK = {
+    OUTCOME_LEADS:      ['lead', 'onsite_conversion.lead_grouped'],
+    OUTCOME_SALES:      ['purchase', 'offsite_conversion.fb_pixel_purchase', 'omni_purchase'],
+    OUTCOME_ENGAGEMENT: ['post_engagement'],
+    OUTCOME_TRAFFIC:    ['link_click'],
+    OUTCOME_AWARENESS:  ['reach'],
+    MESSAGES:           ['onsite_conversion.messaging_conversation_started_7d'],
+    CONVERSIONS:        ['offsite_conversion.fb_pixel_purchase', 'purchase'],
+    LEAD_GENERATION:    ['lead', 'onsite_conversion.lead_grouped'],
+  };
+  const targetTypes = OBJECTIVE_FALLBACK[objective] || [];
   return actions
     .filter(a => targetTypes.includes(a.action_type))
     .reduce((sum, a) => sum + parseInt(a.value || 0), 0);
@@ -59,6 +107,24 @@ async function syncMetaData(startDate, endDate) {
     campaignStatusMap[c.id] = toSystemStatus(c.effective_status);
   }
 
+  // ① ad set の optimization_goal + promoted_object を取得してキャンペーンIDでマッピング
+  const adsetsRes = await axios.get(`${BASE}/${adAccountId}/adsets`, {
+    params: {
+      access_token: token,
+      fields: 'campaign_id,optimization_goal,promoted_object',
+      limit: 500,
+    },
+  });
+  const campaignOptimizationMap = {};
+  for (const adset of adsetsRes.data.data || []) {
+    if (!campaignOptimizationMap[adset.campaign_id]) {
+      campaignOptimizationMap[adset.campaign_id] = {
+        optimization_goal: adset.optimization_goal,
+        promoted_object: adset.promoted_object,
+      };
+    }
+  }
+
   // ② インサイト（消化データ）取得
   const insightsRes = await axios.get(`${BASE}/${adAccountId}/insights`, {
     params: {
@@ -84,7 +150,8 @@ async function syncMetaData(startDate, endDate) {
     const actions = row.actions || [];
     const linkClickAction = actions.find(a => a.action_type === 'link_click');
     const clicks = linkClickAction ? parseInt(linkClickAction.value || 0) : 0;
-    const conversions = extractResultConversions(row.objective, actions);
+    const optimizationInfo = campaignOptimizationMap[metaCampaignId] || null;
+    const conversions = extractResultConversions(row.objective, actions, optimizationInfo);
     const status = campaignStatusMap[metaCampaignId] || 'paused';
 
     const campaignRes = await pool.query(
