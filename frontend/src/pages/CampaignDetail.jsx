@@ -349,11 +349,14 @@ const calcMonthTotals = (mRows) => {
 // ---- メインコンポーネント ----
 const CampaignDetail = () => {
   const { id } = useParams();
-  const [campaign,     setCampaign]     = useState(null);
-  const [allRows,      setAllRows]      = useState([]);   // 全データ（1年分）
-  const [memoMap,      setMemoMap]      = useState({});
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
-  const [loading,      setLoading]      = useState(true);
+  const [campaign,        setCampaign]        = useState(null);
+  const [allRows,         setAllRows]         = useState([]);
+  const [memoMap,         setMemoMap]         = useState({});
+  const [selectedMonth,   setSelectedMonth]   = useState(currentMonthKey);
+  const [loading,         setLoading]         = useState(true);
+  const [statusMenuOpen,  setStatusMenuOpen]  = useState(false);
+  const [statusUpdating,  setStatusUpdating]  = useState(false);
+  const statusMenuRef = useRef(null);
 
   // 1年分まとめて取得
   const fetchStart = (() => {
@@ -450,6 +453,31 @@ const CampaignDetail = () => {
     });
   };
 
+  const handleStatusChange = async (newStatus) => {
+    if (!campaign || statusUpdating) return;
+    setStatusUpdating(true);
+    setStatusMenuOpen(false);
+    try {
+      const res = await campaignAPI.updateStatus(campaign.campaign_id, newStatus);
+      setCampaign(res.data);
+    } catch (e) {
+      console.error('ステータス更新失敗:', e);
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  // ステータスメニュー外クリックで閉じる
+  useEffect(() => {
+    const handler = (e) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target)) {
+        setStatusMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // 選択月の合計
   const totals = rows.reduce((acc, row) => {
     acc.spend               += Number(row.spend || 0);
@@ -515,15 +543,51 @@ const CampaignDetail = () => {
             <h1 style={{ fontSize: '1.4rem', fontWeight: '700', color: 'var(--text-primary)' }}>
               {campaign?.campaign_name || 'キャンペーン詳細'}
             </h1>
-            {campaign && (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                padding: '0.25rem 0.75rem', borderRadius: '99px',
-                backgroundColor: st.bg, color: st.color, fontSize: '0.78rem', fontWeight: '700'
-              }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: st.dot }} />
-                {st.label}
-              </span>
+            {campaign && !isAllCampaigns && (
+              <div ref={statusMenuRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setStatusMenuOpen(o => !o)}
+                  disabled={statusUpdating}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                    padding: '0.25rem 0.75rem', borderRadius: '99px',
+                    backgroundColor: st.bg, color: st.color, fontSize: '0.78rem', fontWeight: '700',
+                    border: 'none', cursor: 'pointer', opacity: statusUpdating ? 0.6 : 1,
+                  }}
+                >
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: st.dot }} />
+                  {st.label}
+                  <ChevronDown size={11} />
+                </button>
+                {statusMenuOpen && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100,
+                    backgroundColor: 'white', border: '1px solid var(--border-color)',
+                    borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    minWidth: '120px', overflow: 'hidden',
+                  }}>
+                    {Object.entries(STATUS).map(([key, s]) => (
+                      <button
+                        key={key}
+                        onClick={() => handleStatusChange(key)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.5rem',
+                          width: '100%', padding: '0.5rem 0.75rem', border: 'none',
+                          backgroundColor: campaign.status === key ? s.bg : 'transparent',
+                          color: campaign.status === key ? s.color : 'var(--text-primary)',
+                          fontSize: '0.82rem', fontWeight: campaign.status === key ? '700' : '500',
+                          cursor: 'pointer', textAlign: 'left',
+                        }}
+                        onMouseEnter={e => { if (campaign.status !== key) e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                        onMouseLeave={e => { if (campaign.status !== key) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: s.dot, flexShrink: 0 }} />
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginLeft: '1rem' }}>日別パフォーマンスデータ</p>
@@ -691,14 +755,14 @@ const CampaignDetail = () => {
         ) : rows.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>データがありません</div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 260px)' }}>
             <table className="table" style={{ minWidth: '900px' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
-                  <th style={{ textAlign: 'left', position: 'sticky', left: 0, backgroundColor: 'var(--bg-tertiary)', zIndex: 2, minWidth: '110px' }}>日付</th>
-                  {METRICS.map(m => <th key={m.key} style={{ whiteSpace: 'nowrap' }}>{m.label}</th>)}
+                  <th style={{ textAlign: 'left', position: 'sticky', left: 0, top: 0, backgroundColor: 'var(--bg-tertiary)', zIndex: 11, minWidth: '110px' }}>日付</th>
+                  {METRICS.map(m => <th key={m.key} style={{ whiteSpace: 'nowrap', position: 'sticky', top: 0, backgroundColor: 'var(--bg-tertiary)', zIndex: 10 }}>{m.label}</th>)}
                   {!isAllCampaigns && (
-                    <th style={{ textAlign: 'left', minWidth: '220px' }}>
+                    <th style={{ textAlign: 'left', minWidth: '220px', position: 'sticky', top: 0, backgroundColor: 'var(--bg-tertiary)', zIndex: 10 }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         <Pencil size={11} style={{ color: '#94a3b8' }} /> 運用メモ
                       </span>

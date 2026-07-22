@@ -146,8 +146,84 @@ export default function Campaigns() {
           キャンペーンがありません。<br />
           「Metaデータ同期」でキャンペーンを取り込んでください。
         </div>
-      ) : (
+      ) : (() => {
+        // 全キャンペーン合算
+        const totalSpend = Object.values(summaries).reduce((acc, s) => acc + Number(s?.total_spend || 0), 0);
+        const totalClicks = Object.values(summaries).reduce((acc, s) => acc + Number(s?.total_clicks || 0), 0);
+        const totalCV = Object.values(summaries).reduce((acc, s) => acc + Number(s?.total_conversions_meta || 0), 0);
+        const totalCPA = totalCV > 0 ? totalSpend / totalCV : null;
+        return (
         <div style={{ display: 'grid', gap: '0.75rem' }}>
+          {/* 全キャンペーン合算行 */}
+          <Link to="/overall" style={{ textDecoration: 'none' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
+              borderRadius: '12px',
+              border: '2px solid #93c5fd',
+              padding: '1rem 1.25rem',
+              display: 'flex', alignItems: 'center', gap: '1rem',
+              transition: 'box-shadow 0.15s, border-color 0.15s',
+              cursor: 'pointer',
+            }}
+              onMouseEnter={e => {
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.18)';
+                e.currentTarget.style.borderColor = '#3b82f6';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = '#93c5fd';
+              }}
+            >
+              {/* アイコン */}
+              <div style={{
+                width: '10px', height: '10px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, #3b82f6, #10b981)', flexShrink: 0,
+              }} />
+
+              {/* ラベル */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#1e40af' }}>
+                  全キャンペーン合算
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#3b82f6', marginTop: '0.15rem' }}>
+                  {campaigns.length}キャンペーン合計
+                </div>
+              </div>
+
+              {/* バッジ */}
+              <span style={{
+                fontSize: '0.72rem', fontWeight: '600', padding: '0.2rem 0.6rem',
+                borderRadius: '99px', backgroundColor: '#dbeafe', color: '#1d4ed8',
+                flexShrink: 0, letterSpacing: '0.02em'
+              }}>
+                合算
+              </span>
+
+              {/* KPI */}
+              <div style={{
+                display: 'flex', gap: '1.5rem', flexShrink: 0,
+                borderLeft: '1px solid #bfdbfe', paddingLeft: '1.25rem'
+              }}>
+                {[
+                  { label: '消化金額', value: fmtYen(totalSpend) },
+                  { label: 'クリック', value: fmt(totalClicks) },
+                  { label: 'CV（Meta）', value: fmt(totalCV) },
+                  { label: 'CPA', value: totalCPA !== null ? fmtYen(totalCPA) : '—' },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ textAlign: 'right', minWidth: '60px' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#3b82f6', marginBottom: '0.15rem' }}>{label}</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#1e40af' }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 矢印 */}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+          </Link>
+
           {campaigns.map((c, i) => {
             const st = STATUS[c.status] || STATUS.active;
             const color = st.dot;
@@ -241,7 +317,8 @@ export default function Campaigns() {
             );
           })}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

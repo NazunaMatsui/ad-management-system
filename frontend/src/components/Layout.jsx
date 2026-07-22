@@ -218,6 +218,33 @@ const Layout = ({ children }) => {
 
             {campaignsOpen && (
               <div style={{ marginTop: '0.375rem' }}>
+                {/* 全キャンペーン合算 */}
+                <Link to="/overall"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.5rem 0.75rem', marginBottom: '0.125rem',
+                    borderRadius: '8px', textDecoration: 'none',
+                    fontSize: '0.82rem',
+                    color: isActive('/overall') ? '#1e40af' : 'var(--text-secondary)',
+                    backgroundColor: isActive('/overall') ? 'rgba(59,130,246,0.09)' : 'transparent',
+                    fontWeight: isActive('/overall') ? '600' : '500', transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { if (!isActive('/overall')) e.currentTarget.style.backgroundColor = 'var(--bg-hover)'; }}
+                  onMouseLeave={e => { if (!isActive('/overall')) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                >
+                  <span style={{
+                    width: '7px', height: '7px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg,#3b82f6,#10b981)', flexShrink: 0
+                  }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                    全キャンペーン合算
+                  </span>
+                  <span style={{
+                    fontSize: '0.62rem', fontWeight: '600', padding: '0.1rem 0.375rem',
+                    borderRadius: '99px', backgroundColor: '#dbeafe', color: '#1d4ed8',
+                    flexShrink: 0
+                  }}>合算</span>
+                </Link>
                 {campaigns.length === 0 ? (
                   <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     キャンペーンなし
