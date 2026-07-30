@@ -10,6 +10,7 @@ import Campaigns from './pages/Campaigns';
 import DataEntry from './pages/DataEntry';
 import Memos from './pages/Memos';
 import Creatives from './pages/Creatives';
+import OverallSummary from './pages/OverallSummary';
 import Account from './pages/Account';
 import AdminUsers from './pages/AdminUsers';
 import './styles/globals.css';
@@ -67,6 +68,17 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <Campaigns />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/overall"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <OverallSummary />
             </Layout>
           </ProtectedRoute>
         }

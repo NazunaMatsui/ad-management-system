@@ -49,6 +49,7 @@ export const campaignAPI = {
   getById: (id) => api.get(`/campaigns/${id}`),
   create: (data) => api.post('/campaigns', data),
   update: (id, data) => api.put(`/campaigns/${id}`, data),
+  updateStatus: (id, status) => api.patch(`/campaigns/${id}/status`, { status }),
   delete: (id) => api.delete(`/campaigns/${id}`)
 };
 

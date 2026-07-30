@@ -59,12 +59,12 @@ router.post('/', async (req, res) => {
 
 // キャンペーン更新
 router.put('/:id', async (req, res) => {
-  const { campaign_name, meta_campaign_id, is_group, parent_campaign_id, is_active } = req.body;
-  
+  const { campaign_name, meta_campaign_id, is_group, parent_campaign_id, is_active, status } = req.body;
+
   try {
     const result = await pool.query(
-      'UPDATE campaigns SET campaign_name = $1, meta_campaign_id = $2, is_group = $3, parent_campaign_id = $4, is_active = $5 WHERE campaign_id = $6 RETURNING *',
-      [campaign_name, meta_campaign_id, is_group, parent_campaign_id, is_active, req.params.id]
+      'UPDATE campaigns SET campaign_name = $1, meta_campaign_id = $2, is_group = $3, parent_campaign_id = $4, is_active = $5, status = COALESCE($7, status), updated_at = CURRENT_TIMESTAMP WHERE campaign_id = $6 RETURNING *',
+      [campaign_name, meta_campaign_id, is_group, parent_campaign_id, is_active, req.params.id, status || null]
     );
     
     if (result.rows.length === 0) {
@@ -74,6 +74,26 @@ router.put('/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('キャンペーン更新エラー:', error);
+    res.status(500).json({ error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ステータスのみ更新
+router.patch('/:id/status', async (req, res) => {
+  const { status } = req.body;
+  const allowed = ['active', 'paused', 'testing', 'ended'];
+  if (!allowed.includes(status)) {
+    return res.status(400).json({ error: '無効なステータスです' });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE campaigns SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE campaign_id = $2 RETURNING *',
+      [status, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'キャンペーンが見つかりません' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('ステータス更新エラー:', error);
     res.status(500).json({ error: 'サーバーエラーが発生しました' });
   }
 });
