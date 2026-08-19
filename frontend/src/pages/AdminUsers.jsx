@@ -143,14 +143,6 @@ export default function AdminUsers() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.875rem', fontWeight: '600', color: '#1e293b' }}>{u.username}</div>
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.1rem' }}>{u.email}</div>
-                  {isPrimaryOwner && u.temp_password && (
-                    <div style={{ fontSize: '0.72rem', color: '#f59e0b', marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <span style={{ color: '#94a3b8' }}>初期PW:</span>
-                      <code style={{ backgroundColor: '#fef3c7', padding: '0.05rem 0.35rem', borderRadius: '4px', fontWeight: '700', letterSpacing: '0.05em', color: '#92400e' }}>
-                        {u.temp_password}
-                      </code>
-                    </div>
-                  )}
                 </div>
                 {u.user_id === user?.userId ? (
                   <span style={{
