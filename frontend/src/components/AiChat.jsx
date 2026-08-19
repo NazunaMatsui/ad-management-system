@@ -3,7 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import { chatAPI } from '../utils/api';
 
 const INITIAL_MESSAGE = { role: 'assistant', content: 'こんにちは！広告運用について何でも聞いてください。直近30日のデータをもとに分析します。' };
-const DAILY_LIMIT = 500000; // Groq無料枠 トークン/日
+const MINUTE_TOKEN_LIMIT = 8000;  // Groq無料枠 トークン/分
+const MINUTE_REQ_LIMIT = 1000;    // Groq無料枠 リクエスト/分
 const LS_SESSION = 'ai_chat_session_id';
 const LS_MESSAGES = 'ai_chat_messages';
 const LS_USAGE = 'ai_chat_usage';
@@ -158,8 +159,6 @@ const AiChat = ({ onClose }) => {
   };
 
   const todayUsed = getTodayUsage();
-  const usagePct = Math.min((todayUsed / DAILY_LIMIT) * 100, 100);
-  const usageColor = usagePct > 80 ? '#ef4444' : usagePct > 50 ? '#f59e0b' : '#22c55e';
 
   return (
     <div style={{
@@ -209,24 +208,18 @@ const AiChat = ({ onClose }) => {
         </div>
       </div>
 
-      {/* トークン使用状況バー */}
+      {/* レート制限情報バー */}
       <div style={{
-        padding: '6px 14px', background: '#f8fafc',
+        padding: '5px 14px', background: '#f8fafc',
         borderBottom: '1px solid #e2e8f0', flexShrink: 0,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-          <span style={{ fontSize: '0.65rem', color: '#64748b' }}>📊 本日のトークン使用量（無料枠 50万/日）</span>
-          <span style={{ fontSize: '0.65rem', fontWeight: '600', color: usageColor }}>
-            {todayUsed.toLocaleString()} / {DAILY_LIMIT.toLocaleString()} ({usagePct.toFixed(1)}%)
-          </span>
-        </div>
-        <div style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', width: `${usagePct}%`,
-            background: usageColor,
-            borderRadius: '2px', transition: 'width 0.4s ease',
-          }} />
-        </div>
+        <span style={{ fontSize: '0.63rem', color: '#64748b' }}>
+          📊 無料枠：<strong style={{ color: '#475569' }}>{MINUTE_TOKEN_LIMIT.toLocaleString()}トークン/分</strong>・<strong style={{ color: '#475569' }}>{MINUTE_REQ_LIMIT.toLocaleString()}リクエスト/分</strong>
+        </span>
+        <span style={{ fontSize: '0.63rem', color: '#94a3b8' }}>
+          本日累計 {todayUsed.toLocaleString()} トークン
+        </span>
       </div>
 
       {/* 履歴ビュー */}

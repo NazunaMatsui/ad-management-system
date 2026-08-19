@@ -1,7 +1,26 @@
 import { Hono } from 'hono';
-import Groq from 'groq-sdk';
 import { authMiddleware } from '../lib/auth.js';
 import { getSupabase } from '../lib/supabase.js';
+
+async function callGroq(apiKey, messages) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'openai/gpt-oss-120b',
+      messages,
+      max_tokens: 2048,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Groq API error: ${res.status} ${err}`);
+  }
+  return res.json();
+}
 
 const router = new Hono();
 router.use('*', authMiddleware());
@@ -105,7 +124,8 @@ router.post('/', async (c) => {
 
   const sb = getSupabase(c.env);
   const user = c.get('user');
-  const groq = c.env.GROQ_API_KEY ? new Groq({ apiKey: c.env.GROQ_API_KEY }) : null;
+
+  if (!c.env.GROQ_API_KEY) return c.json({ error: 'GROQ_API_KEYが設定されていません' }, 500);
 
   try {
     const { campaigns, memos } = await getAdContext(sb);
@@ -116,7 +136,7 @@ ${pastConversations ? `\n## 過去の会話履歴（参考）\n${pastConversatio
 
 ## 直近30日間のキャンペーンデータ
 ${campaigns.length > 0
-  ? campaigns.map(c => `- ${c.campaign_name}（${c.status}）: 費用¥${Number(c.total_cost).toLocaleString()} / 表示${Number(c.total_impressions).toLocaleString()}回 / クリック${Number(c.total_clicks).toLocaleString()}回 / CV${c.total_conversions}件`).join('\n')
+  ? campaigns.map(camp => `- ${camp.campaign_name}（${camp.status}）: 費用¥${Number(camp.total_cost).toLocaleString()} / 表示${Number(camp.total_impressions).toLocaleString()}回 / クリック${Number(camp.total_clicks).toLocaleString()}回 / CV${camp.total_conversions}件`).join('\n')
   : 'データなし'}
 
 ## 最近の運用メモ
@@ -124,25 +144,25 @@ ${memos.length > 0
   ? memos.map(m => `- [${m.date}] ${m.campaign_name}: ${m.memo_content}`).join('\n')
   : 'メモなし'}
 
-## 回答スタイルのルール
-- 絵文字を積極的に使って視覚的にわかりやすくする
-- 数値や重要な情報は**太字**で強調する
-- 箇条書きを活用して読みやすくする
+## 回答スタイルのルール（必ず守ること）
+- **必ずMarkdown形式**で回答する
+- 見出しは ## や ### を使って構造化する
+- 重要な数値やキーワードは **太字** で強調する
+- 箇条書き（-）や番号リスト（1.）を積極的に使う
+- 絵文字を使って視覚的にわかりやすくする（例：📊 💡 ⚠️ ✅ 🔺 🔻）
 - 日本語で回答する
 - 回答は必ず完結させる
-- 1回の回答は500文字以内を目安にコンパクトにまとめる`;
+- 内部の思考過程は絶対に出力しない（<think>タグは使わない）`;
 
     const conversationMessages = [
       { role: 'system', content: systemPrompt },
       ...messages.filter(m => m.role === 'user' || m.role === 'assistant').map(m => ({ role: m.role, content: m.content })),
     ];
 
-    const response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: conversationMessages,
-      max_tokens: 2048,
-    });
-    const text = response.choices[0]?.message?.content || '';
+    const response = await callGroq(c.env.GROQ_API_KEY, conversationMessages);
+    // Qwen3の<think>タグを除去
+    const raw = response.choices[0]?.message?.content || '';
+    const text = raw.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
     const userMessage = messages[messages.length - 1];
     let currentSessionId = sessionId;
@@ -162,7 +182,7 @@ ${memos.length > 0
     await sb.from('chat_messages').insert({ session_id: currentSessionId, role: 'assistant', content: text });
     await sb.from('chat_sessions').update({ updated_at: new Date().toISOString() }).eq('id', currentSessionId);
 
-    return c.json({ message: text, sessionId: currentSessionId, usage: response.usage || null });
+    return c.json({ message: text, sessionId: currentSessionId, usage: response.usage ?? null });
   } catch (e) {
     console.error('チャットエラー:', e);
     return c.json({ error: 'AIとの通信に失敗しました' }, 500);
